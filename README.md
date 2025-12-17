@@ -5,6 +5,7 @@ A Python utility for routing text-to-speech (TTS) audio to specific output devic
 ## Features
 
 - 🎯 **Device Selection**: Route TTS to any audio output device by name
+- 🔊 **Multiple Device Output**: Play audio simultaneously on multiple devices
 - 🎤 **Two TTS Engines**:
   - **macOS `say`**: Fast, built-in macOS TTS with multiple voice options
   - **Bark AI**: Natural-sounding AI-generated speech with realistic prosody
@@ -19,6 +20,7 @@ A Python utility for routing text-to-speech (TTS) audio to specific output devic
 - Route TTS to audio processing software
 - Test audio device configurations
 - Generate speech for accessibility purposes
+- Output to multiple devices simultaneously (e.g., speakers + virtual device)
 
 ## Requirements
 
@@ -50,8 +52,14 @@ pip install -r requirements.txt
 Edit the configuration at the top of `main_say.py`:
 
 ```python
-OUTPUT_DEVICE = "BlackHole 16ch"  # Your target audio device
-VOICE = None                       # macOS voice name (e.g., "Alex", "Samantha")
+OUTPUT_DEVICES = ["BlackHole 16ch"]  # List of target audio devices
+VOICE = None                          # macOS voice name (e.g., "Alex", "Samantha")
+```
+
+**Multiple Device Output**: Add multiple devices to play audio simultaneously on all of them:
+
+```python
+OUTPUT_DEVICES = ["BlackHole 16ch", "External Headphones", "Built-in Output"]
 ```
 
 To see available macOS voices, run:
@@ -64,9 +72,15 @@ say -v ?
 Edit the configuration at the top of `main_bark.py`:
 
 ```python
-OUTPUT_DEVICE = "External Headphones"  # Your target audio device
-VOICE_PRESET = "v2/en_speaker_6"       # Try speaker_1 through speaker_9
-SAMPLE_RATE = 24000                    # Bark's output sample rate
+OUTPUT_DEVICES = ["External Headphones"]  # List of target audio devices
+VOICE_PRESET = "v2/en_speaker_6"          # Try speaker_1 through speaker_9
+SAMPLE_RATE = 24000                       # Bark's output sample rate
+```
+
+**Multiple Device Output**: Same as `main_say.py`, you can add multiple devices:
+
+```python
+OUTPUT_DEVICES = ["BlackHole 16ch", "External Headphones"]
 ```
 
 ## Finding Your Output Device Name
@@ -91,12 +105,19 @@ python main_say.py
 Then type text and press Enter:
 
 ```
-Live TTS → BlackHole
+Live TTS → Multiple Devices
+Output devices: ['BlackHole 16ch']
 Temp files: /path/to/tts_tmp
 Type a line and press Enter (Ctrl+C to quit)
 
 > Hello, world!
 > This is a test of the TTS system.
+```
+
+**Tip**: To hear the audio locally while routing to a virtual device, add your speakers to the device list:
+
+```python
+OUTPUT_DEVICES = ["BlackHole 16ch", "External Headphones"]
 ```
 
 ### Using Bark AI (Natural & Expressive)
@@ -111,7 +132,8 @@ Then type text and press Enter:
 
 ```
 Loading Bark models (first run takes a while)...
-Live Bark TTS → BlackHole
+Live Bark TTS → Multiple Devices
+Output devices: ['External Headphones']
 Temp files: /path/to/tts_tmp
 Voice preset: v2/en_speaker_6
 Type a line and press Enter (Ctrl+C to quit)
@@ -136,7 +158,9 @@ Press `Ctrl+C` to exit either program.
    - `main_say.py` calls macOS `say` command to generate AIFF
    - `main_bark.py` uses Bark AI to generate WAV
 3. **Temporary Storage**: Audio saved to `tts_tmp/` directory
-4. **Playback**: Audio streamed to specified output device via `sounddevice`
+4. **Playback**: 
+   - Audio streamed to specified output device(s) via `sounddevice`
+   - For multiple devices, parallel threads ensure simultaneous playback
 5. **Cleanup**: Temporary file deleted after playback
 
 ## Virtual Audio Setup (Optional)
@@ -171,6 +195,13 @@ Ensure `OUTPUT_DEVICE` matches a device name (substring matching is supported).
 - Verify the output device is not muted
 - Check that the device is properly configured in System Settings → Sound
 - For virtual devices, ensure they're properly installed and visible
+
+### One device works but others don't (multiple device mode)
+
+- Check error messages for specific device failures
+- Verify all device names are correct (run the device query script)
+- Some devices may not support simultaneous playback - test individually
+- Ensure all devices are active and not in use by other applications
 
 ## Dependencies
 

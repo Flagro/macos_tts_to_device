@@ -2,18 +2,23 @@ import os
 import sys
 import uuid
 import subprocess
+import threading
 
 import sounddevice as sd
 import soundfile as sf
 
-OUTPUT_DEVICE = "BlackHole 16ch"  # substring match is supported
+# Multiple output devices - can be device names (substring match) or device IDs
+OUTPUT_DEVICES = [
+    "BlackHole 16ch"
+]  # Add more devices: ["BlackHole 16ch", "External Headphones"]
 VOICE = None  # e.g. "Alex", or None
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 TMP_DIR = os.path.join(SCRIPT_DIR, "tts_tmp")
 os.makedirs(TMP_DIR, exist_ok=True)
 
-print("Live TTS → BlackHole")
+print("Live TTS → Multiple Devices")
+print(f"Output devices: {OUTPUT_DEVICES}")
 print(f"Temp files: {TMP_DIR}")
 print("Type a line and press Enter (Ctrl+C to quit)\n")
 
@@ -33,10 +38,27 @@ try:
             cmd += [text, "-o", audio_path]
             subprocess.run(cmd, check=True)
 
-            # Play to selected device
+            # Play to all selected devices simultaneously
             data, samplerate = sf.read(audio_path, dtype="float32", always_2d=True)
-            sd.play(data, samplerate, device=OUTPUT_DEVICE)
-            sd.wait()
+
+            def play_on_device(device_name):
+                """Play audio on a specific device"""
+                try:
+                    sd.play(data, samplerate, device=device_name)
+                    sd.wait()
+                except Exception as e:
+                    print(f"Error playing on device '{device_name}': {e}")
+
+            # Start playback on all devices in parallel
+            threads = []
+            for device in OUTPUT_DEVICES:
+                thread = threading.Thread(target=play_on_device, args=(device,))
+                thread.start()
+                threads.append(thread)
+
+            # Wait for all devices to finish playing
+            for thread in threads:
+                thread.join()
 
         finally:
             if os.path.exists(audio_path):
