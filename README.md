@@ -45,45 +45,68 @@ pip install -r requirements.txt
 
 **Note**: The Bark installation may take several minutes as it downloads AI models.
 
-## Configuration
+## Project Structure
 
-### Option 1: macOS `say` (main_say.py)
-
-Edit the configuration at the top of `main_say.py`:
-
-```python
-OUTPUT_DEVICES = ["BlackHole 16ch"]  # List of target audio devices
-VOICE = None                          # macOS voice name (e.g., "Alex", "Samantha")
+```
+macos_tts_to_device/
+├── main.py              # Single entry point with CLI
+├── src/
+│   ├── __init__.py
+│   ├── tts_base.py      # Base class for TTS engines
+│   ├── tts_say.py       # macOS 'say' implementation
+│   └── tts_bark.py      # Bark AI implementation
+├── requirements.txt
+└── README.md
 ```
 
-**Multiple Device Output**: Add multiple devices to play audio simultaneously on all of them:
+## Configuration & Usage
 
-```python
-OUTPUT_DEVICES = ["BlackHole 16ch", "External Headphones", "Built-in Output"]
+The utility uses command-line arguments for configuration. No code editing required!
+
+### Basic Usage
+
+**Using macOS `say` (Fast & Simple)**:
+
+```bash
+python main.py --engine say --devices "BlackHole 16ch"
 ```
 
-To see available macOS voices, run:
+**Using Bark AI (Natural & Expressive)**:
+
+```bash
+python main.py --engine bark --devices "External Headphones"
+```
+
+### Multiple Device Output
+
+Play audio simultaneously on multiple devices:
+
+```bash
+python main.py --engine say --devices "BlackHole 16ch" "External Headphones"
+```
+
+### Advanced Options
+
+**macOS say with specific voice**:
+
+```bash
+python main.py --engine say --devices "BlackHole 16ch" --voice "Samantha"
+```
+
+To see available macOS voices:
 ```bash
 say -v ?
 ```
 
-### Option 2: Bark AI (main_bark.py)
+**Bark AI with custom speaker**:
 
-Edit the configuration at the top of `main_bark.py`:
-
-```python
-OUTPUT_DEVICES = ["External Headphones"]  # List of target audio devices
-VOICE_PRESET = "v2/en_speaker_6"          # Try speaker_1 through speaker_9
-SAMPLE_RATE = 24000                       # Bark's output sample rate
+```bash
+python main.py --engine bark --devices "External Headphones" --speaker "v2/en_speaker_3"
 ```
 
-**Multiple Device Output**: Same as `main_say.py`, you can add multiple devices:
+Try different speaker presets: `v2/en_speaker_1` through `v2/en_speaker_9`
 
-```python
-OUTPUT_DEVICES = ["BlackHole 16ch", "External Headphones"]
-```
-
-## Finding Your Output Device Name
+### Finding Your Output Device Name
 
 To list all available audio output devices:
 
@@ -94,41 +117,30 @@ print(sd.query_devices())
 
 Or use a partial name match (e.g., "BlackHole", "External", "Headphones").
 
-## Usage
+### Command-Line Help
 
-### Using macOS `say` (Fast & Simple)
+For all available options:
 
 ```bash
-python main_say.py
+python main.py --help
 ```
 
-Then type text and press Enter:
+## Interactive Mode
+
+After starting the program, type text and press Enter:
 
 ```
-Live TTS → Multiple Devices
+Live TTS (macOS say) → Multiple Devices
 Output devices: ['BlackHole 16ch']
 Temp files: /path/to/tts_tmp
+Voice: Default
 Type a line and press Enter (Ctrl+C to quit)
 
 > Hello, world!
 > This is a test of the TTS system.
 ```
 
-**Tip**: To hear the audio locally while routing to a virtual device, add your speakers to the device list:
-
-```python
-OUTPUT_DEVICES = ["BlackHole 16ch", "External Headphones"]
-```
-
-### Using Bark AI (Natural & Expressive)
-
-```bash
-python main_bark.py
-```
-
-**First run**: Bark will download model files (1-2 GB), which may take several minutes.
-
-Then type text and press Enter:
+**With Bark AI** (first run will download model files ~1-2 GB):
 
 ```
 Loading Bark models (first run takes a while)...
@@ -136,6 +148,7 @@ Live Bark TTS → Multiple Devices
 Output devices: ['External Headphones']
 Temp files: /path/to/tts_tmp
 Voice preset: v2/en_speaker_6
+Sample rate: 24000 Hz
 Type a line and press Enter (Ctrl+C to quit)
 
 > Hello! How are you today?
@@ -147,21 +160,28 @@ Type a line and press Enter (Ctrl+C to quit)
 - Bark supports emotional expressions: `[laughter]`, `[sighs]`, `[music]`
 - Generation takes 5-15 seconds per sentence depending on length
 
-## Exiting
-
-Press `Ctrl+C` to exit either program.
+**Exiting**: Press `Ctrl+C` to quit.
 
 ## How It Works
 
 1. **Text Input**: User enters text via stdin
-2. **Audio Generation**: 
-   - `main_say.py` calls macOS `say` command to generate AIFF
-   - `main_bark.py` uses Bark AI to generate WAV
-3. **Temporary Storage**: Audio saved to `tts_tmp/` directory
-4. **Playback**: 
+2. **Engine Selection**: Choose between macOS `say` or Bark AI via `--engine` flag
+3. **Audio Generation**: 
+   - `SayTTSEngine` calls macOS `say` command to generate AIFF
+   - `BarkTTSEngine` uses Bark AI to generate WAV
+4. **Temporary Storage**: Audio saved to `tts_tmp/` directory
+5. **Playback**: 
    - Audio streamed to specified output device(s) via `sounddevice`
    - For multiple devices, parallel threads ensure simultaneous playback
-5. **Cleanup**: Temporary file deleted after playback
+6. **Cleanup**: Temporary file deleted after playback
+
+### Architecture
+
+- **`main.py`**: CLI entry point with argument parsing
+- **`src/tts_base.py`**: Abstract base class defining the TTS engine interface
+- **`src/tts_say.py`**: Implementation using macOS `say` command
+- **`src/tts_bark.py`**: Implementation using Bark AI model
+- All engines support multi-device playback with automatic cleanup
 
 ## Virtual Audio Setup (Optional)
 
@@ -186,7 +206,7 @@ Ensure `OUTPUT_DEVICE` matches a device name (substring matching is supported).
 
 ### Bark is too slow
 
-- Use `main_say.py` for faster (but less natural) TTS
+- Use `--engine say` for faster (but less natural) TTS
 - Bark's first generation per session is slower (model loading)
 - Consider using shorter sentences
 
