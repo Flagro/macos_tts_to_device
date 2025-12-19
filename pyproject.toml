@@ -26,6 +26,10 @@ macos-tts = "main:main"
 [tool.hatch.metadata]
 allow-direct-references = true
 
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+include = ["main.py"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
