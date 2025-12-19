@@ -26,6 +26,7 @@ A Python utility for routing text-to-speech (TTS) audio to specific output devic
 
 - macOS (uses macOS-specific audio features)
 - Python 3.7+
+- [uv](https://github.com/astral-sh/uv) package installer (install with: `curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - Audio output device (physical or virtual like BlackHole)
 
 ## Installation
@@ -39,11 +40,25 @@ cd macos_tts_to_device
 
 2. Install dependencies:
 
+**For macOS `say` engine only (lightweight)**:
+
 ```bash
-pip install -r requirements.txt
+uv pip install .
 ```
 
-**Note**: The Bark installation may take several minutes as it downloads AI models.
+**For Bark AI support (includes all features)**:
+
+```bash
+uv pip install .[bark]
+```
+
+**Or install everything**:
+
+```bash
+uv pip install .[all]
+```
+
+**Note**: The Bark installation may take several minutes as it downloads AI models and dependencies.
 
 ## Project Structure
 
@@ -55,7 +70,7 @@ macos_tts_to_device/
 │   ├── tts_base.py      # Base class for TTS engines
 │   ├── tts_say.py       # macOS 'say' implementation
 │   └── tts_bark.py      # Bark AI implementation
-├── requirements.txt
+├── pyproject.toml       # Dependencies and project config
 └── README.md
 ```
 

@@ -91,7 +91,7 @@ Examples:
         if "bark" in str(e).lower():
             print("\nError: Bark library not installed.")
             print(
-                "Install it with: pip install git+https://github.com/suno-ai/bark.git"
+                "Install it with: uv pip install .[bark]"
             )
             print("Or use the 'say' engine instead: python main.py --engine say")
         else:
