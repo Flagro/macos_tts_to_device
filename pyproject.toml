@@ -5,6 +5,7 @@ description = "Route text-to-speech audio to specific output devices on macOS"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "click>=8.1.7",
     "sounddevice>=0.5.1",
     "soundfile>=0.12.1",
 ]

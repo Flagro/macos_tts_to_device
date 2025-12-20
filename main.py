@@ -7,102 +7,95 @@ Supports multiple TTS engines: macOS 'say' and Bark AI.
 """
 
 import sys
-import argparse
+import click
 
 from src import SayTTSEngine, BarkTTSEngine
 
 
-def main():
-    """Main entry point for TTS to Device utility."""
-    parser = argparse.ArgumentParser(
-        description="Route TTS audio to specific output devices on macOS",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Use macOS say with default voice
-  python main.py --engine say --devices "BlackHole 16ch"
-  
-  # Use macOS say with specific voice
-  python main.py --engine say --devices "BlackHole 16ch" --voice "Samantha"
-  
-  # Use Bark AI with custom speaker
-  python main.py --engine bark --devices "External Headphones" --speaker "v2/en_speaker_3"
-  
-  # Multiple devices (simultaneous playback)
-  python main.py --engine say --devices "BlackHole 16ch" "External Headphones"
-        """,
-    )
+@click.command()
+@click.option(
+    "--engine",
+    type=click.Choice(["say", "bark"], case_sensitive=False),
+    default="say",
+    show_default=True,
+    help="TTS engine to use.",
+)
+@click.option(
+    "--devices",
+    multiple=True,
+    default=["BlackHole 16ch"],
+    help="Output device name(s) - can be partial match. Can be specified multiple times.",
+)
+@click.option(
+    "--voice",
+    type=str,
+    default=None,
+    help="[Say engine] macOS voice name (e.g., 'Alex', 'Samantha'). Run 'say -v ?' to list available voices.",
+)
+@click.option(
+    "--speaker",
+    type=str,
+    default="v2/en_speaker_6",
+    show_default=True,
+    help="[Bark engine] Bark voice preset. Try speaker_1 through speaker_9.",
+)
+@click.option(
+    "--sample-rate",
+    type=int,
+    default=24000,
+    show_default=True,
+    help="[Bark engine] Bark output sample rate in Hz.",
+)
+def main(engine, devices, voice, speaker, sample_rate):
+    """Route TTS audio to specific output devices on macOS.
 
-    parser.add_argument(
-        "--engine",
-        choices=["say", "bark"],
-        default="say",
-        help="TTS engine to use (default: say)",
-    )
+    \b
+    Examples:
+      # Use macOS say with default voice
+      python main.py --engine say --devices "BlackHole 16ch"
 
-    parser.add_argument(
-        "--devices",
-        nargs="+",
-        default=["BlackHole 16ch"],
-        help="Output device name(s) - can be partial match (default: BlackHole 16ch)",
-    )
+      # Use macOS say with specific voice
+      python main.py --engine say --devices "BlackHole 16ch" --voice "Samantha"
 
-    # Say-specific options
-    say_group = parser.add_argument_group("macOS say options")
-    say_group.add_argument(
-        "--voice",
-        type=str,
-        default=None,
-        help="macOS voice name (e.g., 'Alex', 'Samantha'). Run 'say -v ?' to list available voices.",
-    )
+      # Use Bark AI with custom speaker
+      python main.py --engine bark --devices "External Headphones" --speaker "v2/en_speaker_3"
 
-    # Bark-specific options
-    bark_group = parser.add_argument_group("Bark AI options")
-    bark_group.add_argument(
-        "--speaker",
-        type=str,
-        default="v2/en_speaker_6",
-        help="Bark voice preset (default: v2/en_speaker_6). Try speaker_1 through speaker_9.",
-    )
-    bark_group.add_argument(
-        "--sample-rate",
-        type=int,
-        default=24000,
-        help="Bark output sample rate in Hz (default: 24000)",
-    )
-
-    args = parser.parse_args()
+      # Multiple devices (simultaneous playback)
+      python main.py --engine say --devices "BlackHole 16ch" --devices "External Headphones"
+    """
+    # Convert devices tuple to list
+    devices = list(devices)
 
     # Initialize the appropriate TTS engine
     try:
-        if args.engine == "say":
-            engine = SayTTSEngine(output_devices=args.devices, voice=args.voice)
-        elif args.engine == "bark":
-            engine = BarkTTSEngine(
-                output_devices=args.devices,
-                voice_preset=args.speaker,
-                sample_rate=args.sample_rate,
+        if engine == "say":
+            tts_engine = SayTTSEngine(output_devices=devices, voice=voice)
+        elif engine == "bark":
+            tts_engine = BarkTTSEngine(
+                output_devices=devices,
+                voice_preset=speaker,
+                sample_rate=sample_rate,
             )
         else:
-            print(f"Unknown engine: {args.engine}")
+            click.echo(f"Unknown engine: {engine}", err=True)
             sys.exit(1)
 
     except ImportError as e:
         if "bark" in str(e).lower():
-            print("\nError: Bark library not installed.")
-            print(
-                "Install it with: uv pip install .[bark]"
+            click.echo("\nError: Bark library not installed.", err=True)
+            click.echo("Install it with: uv pip install .[bark]", err=True)
+            click.echo(
+                "Or use the 'say' engine instead: python main.py --engine say", err=True
             )
-            print("Or use the 'say' engine instead: python main.py --engine say")
         else:
-            print(f"\nImport error: {e}")
+            click.echo(f"\nImport error: {e}", err=True)
         sys.exit(1)
     except Exception as e:
-        print(f"\nError initializing TTS engine: {e}")
+        click.echo(f"\nError initializing TTS engine: {e}", err=True)
         sys.exit(1)
 
     # Print configuration info
-    engine.print_info()
+    tts_engine.print_info()
 
     # Main loop
     try:
@@ -112,14 +105,14 @@ Examples:
                 continue
 
             try:
-                engine.process_text(text)
+                tts_engine.process_text(text)
             except KeyboardInterrupt:
                 raise
             except Exception as e:
-                print(f"Error processing text: {e}")
+                click.echo(f"Error processing text: {e}", err=True)
 
     except KeyboardInterrupt:
-        print("\nExiting.")
+        click.echo("\nExiting.")
         sys.exit(0)
 
 
