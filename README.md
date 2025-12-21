@@ -25,7 +25,7 @@ A Python utility for routing text-to-speech (TTS) audio to specific output devic
 ## Requirements
 
 - macOS (uses macOS-specific audio features)
-- Python 3.7+
+- Python 3.11+
 - [uv](https://github.com/astral-sh/uv) package installer (install with: `curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - Audio output device (physical or virtual like BlackHole)
 
