@@ -2,7 +2,7 @@
 
 import numpy as np
 import soundfile as sf
-from typing import Tuple
+from typing import Tuple, List
 
 from .tts_base import TTSEngine
 
@@ -12,7 +12,7 @@ class BarkTTSEngine(TTSEngine):
 
     def __init__(
         self,
-        output_devices: list,
+        output_devices: List[str],
         voice_preset: str = "v2/en_speaker_6",
         sample_rate: int = 24000,
         tmp_dir: str = None,

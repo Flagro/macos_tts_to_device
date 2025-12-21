@@ -1,7 +1,7 @@
 """macOS 'say' command TTS engine implementation."""
 
 import subprocess
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 
 from .tts_base import TTSEngine
 
@@ -13,7 +13,10 @@ class SayTTSEngine(TTSEngine):
     """TTS engine using macOS built-in 'say' command."""
 
     def __init__(
-        self, output_devices: list, voice: Optional[str] = None, tmp_dir: str = None
+        self,
+        output_devices: List[str],
+        voice: Optional[str] = None,
+        tmp_dir: str = None,
     ):
         """
         Initialize the Say TTS engine.
@@ -44,7 +47,12 @@ class SayTTSEngine(TTSEngine):
             cmd += ["-v", self.voice]
         cmd += [text, "-o", audio_path]
 
-        subprocess.run(cmd, check=True)
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(
+                f"Failed to generate audio with 'say' command: {e.stderr}"
+            )
 
         # macOS 'say' typically outputs at 22050 Hz, but soundfile will read the actual rate
         output_sample_rate = SAY_DEFAULT_SAMPLE_RATE
