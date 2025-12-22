@@ -7,6 +7,7 @@ Supports multiple TTS engines: macOS 'say' and Bark AI.
 """
 
 import sys
+import logging
 import click
 
 from src import SayTTSEngine, BarkTTSEngine
@@ -46,7 +47,20 @@ from src import SayTTSEngine, BarkTTSEngine
     show_default=True,
     help="[Bark engine] Bark output sample rate in Hz.",
 )
-def main(engine, devices, voice, speaker, sample_rate):
+@click.option(
+    "--log-level",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"], case_sensitive=False),
+    default="WARNING",
+    show_default=True,
+    help="Set logging level for debugging and detailed output.",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Enable verbose output (equivalent to --log-level INFO).",
+)
+def main(engine, devices, voice, speaker, sample_rate, log_level, verbose):
     """Route TTS audio to specific output devices on macOS.
 
     \b
@@ -62,7 +76,26 @@ def main(engine, devices, voice, speaker, sample_rate):
 
       # Multiple devices (simultaneous playback)
       python main.py --engine say --devices "BlackHole 16ch" --devices "External Headphones"
+
+      # Enable verbose logging for troubleshooting
+      python main.py --engine say --devices "BlackHole 16ch" --verbose
+
+      # Enable debug logging for detailed output
+      python main.py --engine say --devices "BlackHole 16ch" --log-level DEBUG
     """
+    # Configure logging
+    if verbose:
+        log_level = "INFO"
+    
+    logging.basicConfig(
+        level=getattr(logging, log_level.upper()),
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    
+    logger = logging.getLogger(__name__)
+    logger.info(f"Starting macOS TTS to Device with engine={engine}, devices={devices}")
+    
     # Convert devices tuple to list
     devices = list(devices)
 
