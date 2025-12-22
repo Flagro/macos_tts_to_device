@@ -3,10 +3,9 @@
 import subprocess
 from typing import Tuple, Optional, List
 
+import soundfile as sf
+
 from .tts_base import TTSEngine
-
-
-SAY_DEFAULT_SAMPLE_RATE = 22050
 
 
 class SayTTSEngine(TTSEngine):
@@ -54,9 +53,9 @@ class SayTTSEngine(TTSEngine):
                 f"Failed to generate audio with 'say' command: {e.stderr}"
             )
 
-        # macOS 'say' typically outputs at 22050 Hz, but soundfile will read the actual rate
-        output_sample_rate = SAY_DEFAULT_SAMPLE_RATE
-        return audio_path, output_sample_rate
+        # Read the actual sample rate from the generated audio file
+        info = sf.info(audio_path)
+        return audio_path, info.samplerate
 
     def get_engine_name(self) -> str:
         """Return the name of the TTS engine."""
