@@ -2,12 +2,15 @@
 
 import os
 import uuid
+import logging
 import threading
 from abc import ABC, abstractmethod
 from typing import List, Tuple
 
 import sounddevice as sd
 import soundfile as sf
+
+logger = logging.getLogger(__name__)
 
 
 class TTSEngine(ABC):
@@ -28,7 +31,14 @@ class TTSEngine(ABC):
             tmp_dir = os.path.join(script_dir, "tts_tmp")
 
         self.tmp_dir = tmp_dir
-        os.makedirs(self.tmp_dir, exist_ok=True)
+        try:
+            os.makedirs(self.tmp_dir, exist_ok=True)
+            logger.info(f"Temporary directory: {self.tmp_dir}")
+        except OSError as e:
+            logger.error(f"Failed to create temporary directory {self.tmp_dir}: {e}")
+            raise RuntimeError(
+                f"Failed to create temporary directory {self.tmp_dir}: {e}"
+            ) from e
 
     @abstractmethod
     def generate_audio(self, text: str) -> Tuple[str, int]:
@@ -58,10 +68,16 @@ class TTSEngine(ABC):
             device_name: Name or ID of the output device
         """
         try:
+            logger.debug(f"Reading audio file for device '{device_name}': {audio_path}")
             data, sr = sf.read(audio_path, dtype="float32", always_2d=True)
+            logger.debug(
+                f"Playing audio on device '{device_name}': {data.shape[0]} samples at {sr} Hz"
+            )
             sd.play(data, sr, device=device_name)
             sd.wait()
+            logger.info(f"Finished playback on device '{device_name}'")
         except Exception as e:
+            logger.error(f"Error playing on device '{device_name}': {e}", exc_info=True)
             print(f"Error playing on device '{device_name}': {e}")
 
     def play_audio(self, audio_path: str, sample_rate: int):
@@ -72,10 +88,15 @@ class TTSEngine(ABC):
             audio_path: Path to audio file
             sample_rate: Sample rate of the audio
         """
+        logger.info(
+            f"Starting playback on {len(self.output_devices)} device(s): {self.output_devices}"
+        )
         threads = []
         for device in self.output_devices:
             thread = threading.Thread(
-                target=self.play_on_device, args=(audio_path, sample_rate, device)
+                target=self.play_on_device,
+                args=(audio_path, sample_rate, device),
+                name=f"Playback-{device}",
             )
             thread.start()
             threads.append(thread)
@@ -83,6 +104,7 @@ class TTSEngine(ABC):
         # Wait for all devices to finish playing
         for thread in threads:
             thread.join()
+        logger.info("All devices finished playback")
 
     def process_text(self, text: str):
         """
@@ -92,12 +114,17 @@ class TTSEngine(ABC):
             text: Text to convert to speech
         """
         audio_path = None
+        logger.info(f"Processing text: '{text[:50]}{'...' if len(text) > 50 else ''}'")
         try:
             audio_path, sample_rate = self.generate_audio(text)
             self.play_audio(audio_path, sample_rate)
         finally:
             if audio_path and os.path.exists(audio_path):
-                os.remove(audio_path)
+                try:
+                    os.remove(audio_path)
+                    logger.debug(f"Cleaned up temporary file: {audio_path}")
+                except OSError as e:
+                    logger.warning(f"Failed to remove temporary file {audio_path}: {e}")
 
     def generate_temp_path(self, extension: str = "wav") -> str:
         """
@@ -109,7 +136,9 @@ class TTSEngine(ABC):
         Returns:
             Full path to temporary file
         """
-        return os.path.join(self.tmp_dir, f"{uuid.uuid4().hex}.{extension}")
+        temp_path = os.path.join(self.tmp_dir, f"{uuid.uuid4().hex}.{extension}")
+        logger.debug(f"Generated temporary file path: {temp_path}")
+        return temp_path
 
     def print_info(self):
         """Print information about the TTS engine configuration."""
