@@ -60,16 +60,26 @@ from src import SayTTSEngine, BarkTTSEngine
     is_flag=True,
     help="Enable verbose output (equivalent to --log-level INFO).",
 )
-def main(engine, devices, voice, speaker, sample_rate, log_level, verbose):
+@click.option(
+    "--text",
+    "-t",
+    type=str,
+    default=None,
+    help="Text to speak. If provided, speaks the text and exits. Otherwise, enters interactive mode.",
+)
+def main(engine, devices, voice, speaker, sample_rate, log_level, verbose, text):
     """Route TTS audio to specific output devices on macOS.
 
     \b
     Examples:
-      # Use macOS say with default voice
+      # Speak text directly from command line
+      python main.py --text "Hello world"
+
+      # Use macOS say with default voice (interactive mode)
       python main.py --engine say --devices "BlackHole 16ch"
 
-      # Use macOS say with specific voice
-      python main.py --engine say --devices "BlackHole 16ch" --voice "Samantha"
+      # Use macOS say with specific voice and text
+      python main.py --engine say --devices "BlackHole 16ch" --voice "Samantha" --text "Hello"
 
       # Use Bark AI with custom speaker
       python main.py --engine bark --devices "External Headphones" --speaker "v2/en_speaker_3"
@@ -86,16 +96,16 @@ def main(engine, devices, voice, speaker, sample_rate, log_level, verbose):
     # Configure logging
     if verbose:
         log_level = "INFO"
-    
+
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    
+
     logger = logging.getLogger(__name__)
     logger.info(f"Starting macOS TTS to Device with engine={engine}, devices={devices}")
-    
+
     # Convert devices tuple to list
     devices = list(devices)
 
@@ -130,7 +140,16 @@ def main(engine, devices, voice, speaker, sample_rate, log_level, verbose):
     # Print configuration info
     tts_engine.print_info()
 
-    # Main loop
+    # If text is provided via CLI, process it and exit
+    if text:
+        try:
+            tts_engine.process_text(text)
+            sys.exit(0)
+        except Exception as e:
+            click.echo(f"Error processing text: {e}", err=True)
+            sys.exit(1)
+
+    # Otherwise, enter interactive mode
     try:
         while True:
             text = input("> ").strip()
