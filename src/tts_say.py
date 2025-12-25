@@ -55,13 +55,7 @@ class SayTTSEngine(TTSEngine):
         logger.debug(f"Executing command: {' '.join(cmd)}")
 
         try:
-            result = subprocess.run(
-                cmd, check=True, capture_output=True, text=True, timeout=30
-            )
-            if result.stdout:
-                logger.debug(f"Command stdout: {result.stdout}")
-            if result.stderr:
-                logger.warning(f"Command stderr: {result.stderr}")
+            subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=30)
             logger.info(f"Successfully generated audio file: {audio_path}")
         except subprocess.TimeoutExpired as e:
             logger.error(f"Command timed out after 30 seconds: {' '.join(cmd)}")
