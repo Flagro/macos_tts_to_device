@@ -34,6 +34,13 @@ from src import SayTTSEngine, BarkTTSEngine
     help="[Say engine] macOS voice name (e.g., 'Alex', 'Samantha'). Run 'say -v ?' to list available voices.",
 )
 @click.option(
+    "--timeout",
+    type=int,
+    default=30,
+    show_default=True,
+    help="[Say engine] Timeout in seconds for the 'say' command.",
+)
+@click.option(
     "--speaker",
     type=str,
     default="v2/en_speaker_6",
@@ -67,7 +74,9 @@ from src import SayTTSEngine, BarkTTSEngine
     default=None,
     help="Text to speak. If provided, speaks the text and exits. Otherwise, enters interactive mode.",
 )
-def main(engine, devices, voice, speaker, sample_rate, log_level, verbose, text):
+def main(
+    engine, devices, voice, timeout, speaker, sample_rate, log_level, verbose, text
+):
     """Route TTS audio to specific output devices on macOS.
 
     \b
@@ -112,7 +121,9 @@ def main(engine, devices, voice, speaker, sample_rate, log_level, verbose, text)
     # Initialize the appropriate TTS engine
     try:
         if engine == "say":
-            tts_engine = SayTTSEngine(output_devices=devices, voice=voice)
+            tts_engine = SayTTSEngine(
+                output_devices=devices, voice=voice, timeout=timeout
+            )
         elif engine == "bark":
             tts_engine = BarkTTSEngine(
                 output_devices=devices,

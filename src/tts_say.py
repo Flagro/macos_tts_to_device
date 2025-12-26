@@ -19,6 +19,7 @@ class SayTTSEngine(TTSEngine):
         output_devices: List[str],
         voice: Optional[str] = None,
         tmp_dir: str = None,
+        timeout: int = 30,
     ):
         """
         Initialize the Say TTS engine.
@@ -27,11 +28,13 @@ class SayTTSEngine(TTSEngine):
             output_devices: List of output device names or IDs
             voice: macOS voice name (e.g., "Alex", "Samantha"), None for default
             tmp_dir: Directory for temporary audio files
+            timeout: Timeout in seconds for the 'say' command (default: 30)
         """
         super().__init__(output_devices, tmp_dir)
         self.voice = voice
+        self.timeout = timeout
         logger.info(
-            f"Initialized SayTTSEngine with voice='{voice}', devices={output_devices}"
+            f"Initialized SayTTSEngine with voice='{voice}', timeout={timeout}s, devices={output_devices}"
         )
 
     def generate_audio(self, text: str) -> Tuple[str, int]:
@@ -55,12 +58,16 @@ class SayTTSEngine(TTSEngine):
         logger.debug(f"Executing command: {' '.join(cmd)}")
 
         try:
-            subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=30)
+            subprocess.run(
+                cmd, check=True, capture_output=True, text=True, timeout=self.timeout
+            )
             logger.info(f"Successfully generated audio file: {audio_path}")
         except subprocess.TimeoutExpired as e:
-            logger.error(f"Command timed out after 30 seconds: {' '.join(cmd)}")
+            logger.error(
+                f"Command timed out after {self.timeout} seconds: {' '.join(cmd)}"
+            )
             raise RuntimeError(
-                f"The 'say' command timed out after 30 seconds. Text may be too long."
+                f"The 'say' command timed out after {self.timeout} seconds. Text may be too long."
             ) from e
         except subprocess.CalledProcessError as e:
             logger.error(
