@@ -74,13 +74,30 @@ from src import SayTTSEngine, BarkTTSEngine
     default=None,
     help="Text to speak. If provided, speaks the text and exits. Otherwise, enters interactive mode.",
 )
+@click.option(
+    "--list-voices",
+    is_flag=True,
+    help="[Say engine] List all available macOS voices and exit.",
+)
 def main(
-    engine, devices, voice, timeout, speaker, sample_rate, log_level, verbose, text
+    engine,
+    devices,
+    voice,
+    timeout,
+    speaker,
+    sample_rate,
+    log_level,
+    verbose,
+    text,
+    list_voices,
 ):
     """Route TTS audio to specific output devices on macOS.
 
     \b
     Examples:
+      # List available voices for the say engine
+      python main.py --list-voices
+
       # Speak text directly from command line
       python main.py --text "Hello world"
 
@@ -113,6 +130,21 @@ def main(
     )
 
     logger = logging.getLogger(__name__)
+
+    # Handle --list-voices flag
+    if list_voices:
+        if engine != "say":
+            click.echo(
+                "Note: --list-voices only works with the 'say' engine.", err=True
+            )
+            sys.exit(1)
+        try:
+            SayTTSEngine.print_available_voices()
+            sys.exit(0)
+        except Exception as e:
+            click.echo(f"Error listing voices: {e}", err=True)
+            sys.exit(1)
+
     logger.info(f"Starting macOS TTS to Device with engine={engine}, devices={devices}")
 
     # Convert devices tuple to list
