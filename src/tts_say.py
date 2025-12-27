@@ -105,3 +105,64 @@ class SayTTSEngine(TTSEngine):
             print(f"Voice: {self.voice}")
         else:
             print("Voice: Default")
+
+    @staticmethod
+    def list_available_voices() -> List[Tuple[str, str, str]]:
+        """
+        Get a list of available voices from the 'say' command.
+
+        Returns:
+            List of tuples containing (voice_name, language_code, description)
+            For example: [("Alex", "en_US", "Alex Most people recognize me by my voice."), ...]
+        """
+        try:
+            result = subprocess.run(
+                ["say", "-v", "?"],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            voices = []
+            for line in result.stdout.strip().split("\n"):
+                if line.strip():
+                    # Format: "VoiceName    language_CODE    # Description"
+                    # Example: "Alex             en_US    # Most people recognize me by my voice."
+                    parts = line.split("#", 1)
+                    if len(parts) == 2:
+                        voice_info = parts[0].strip().split()
+                        if len(voice_info) >= 2:
+                            voice_name = voice_info[0]
+                            language_code = voice_info[1]
+                            description = parts[1].strip()
+                            voices.append((voice_name, language_code, description))
+                    else:
+                        # Some voices may not have a description
+                        voice_info = line.strip().split()
+                        if len(voice_info) >= 2:
+                            voice_name = voice_info[0]
+                            language_code = voice_info[1]
+                            voices.append((voice_name, language_code, ""))
+            logger.info(f"Found {len(voices)} available voices")
+            return voices
+        except subprocess.TimeoutExpired as e:
+            logger.error("Command 'say -v ?' timed out")
+            raise RuntimeError("Failed to list voices: command timed out") from e
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to list voices: {e.stderr}")
+            raise RuntimeError(f"Failed to list voices: {e.stderr}") from e
+        except FileNotFoundError as e:
+            logger.error("'say' command not found")
+            raise RuntimeError(
+                "The 'say' command was not found. This tool requires macOS."
+            ) from e
+
+    @staticmethod
+    def print_available_voices():
+        """Print a formatted list of available voices."""
+        voices = SayTTSEngine.list_available_voices()
+        print(f"\nAvailable voices ({len(voices)} total):\n")
+        print(f"{'Voice Name':<20} {'Language':<10} Description")
+        print("-" * 80)
+        for voice_name, language_code, description in voices:
+            print(f"{voice_name:<20} {language_code:<10} {description}")
