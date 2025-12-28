@@ -77,7 +77,7 @@ from src import SayTTSEngine, BarkTTSEngine
 @click.option(
     "--list-voices",
     is_flag=True,
-    help="[Say engine] List all available macOS voices and exit.",
+    help="List all available voices for the selected engine and exit.",
 )
 def main(
     engine,
@@ -96,7 +96,10 @@ def main(
     \b
     Examples:
       # List available voices for the say engine
-      python main.py --list-voices
+      python main.py --engine say --list-voices
+
+      # List available voices for the bark engine
+      python main.py --engine bark --list-voices
 
       # Speak text directly from command line
       python main.py --text "Hello world"
@@ -133,13 +136,11 @@ def main(
 
     # Handle --list-voices flag
     if list_voices:
-        if engine != "say":
-            click.echo(
-                "Note: --list-voices only works with the 'say' engine.", err=True
-            )
-            sys.exit(1)
         try:
-            SayTTSEngine.print_available_voices()
+            if engine == "say":
+                SayTTSEngine.print_available_voices()
+            elif engine == "bark":
+                BarkTTSEngine.print_available_voices()
             sys.exit(0)
         except Exception as e:
             click.echo(f"Error listing voices: {e}", err=True)
