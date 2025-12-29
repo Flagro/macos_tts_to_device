@@ -58,6 +58,17 @@ class TTSEngine(ABC):
         """Return the name of the TTS engine."""
         pass
 
+    @staticmethod
+    @abstractmethod
+    def print_available_voices():
+        """
+        Print a formatted list of available voices for this TTS engine.
+
+        This method should be implemented as a static method that displays
+        all available voices in a user-friendly format.
+        """
+        pass
+
     def play_on_device(self, audio_path: str, sample_rate: int, device_name: str):
         """
         Play audio file on a specific device.
