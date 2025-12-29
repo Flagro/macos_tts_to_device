@@ -12,6 +12,12 @@ import click
 
 from src import SayTTSEngine, BarkTTSEngine
 
+# Engine registry for cleaner code
+ENGINES = {
+    "say": SayTTSEngine,
+    "bark": BarkTTSEngine,
+}
+
 
 @click.command()
 @click.option(
@@ -137,10 +143,12 @@ def main(
     # Handle --list-voices flag
     if list_voices:
         try:
-            if engine == "say":
-                SayTTSEngine.print_available_voices()
-            elif engine == "bark":
-                BarkTTSEngine.print_available_voices()
+            engine_class = ENGINES.get(engine)
+            if engine_class:
+                engine_class.print_available_voices()
+            else:
+                click.echo(f"Unknown engine: {engine}", err=True)
+                sys.exit(1)
             sys.exit(0)
         except Exception as e:
             click.echo(f"Error listing voices: {e}", err=True)
@@ -152,20 +160,23 @@ def main(
     devices = list(devices)
 
     # Initialize the appropriate TTS engine
+    engine_class = ENGINES.get(engine)
+    if not engine_class:
+        click.echo(f"Unknown engine: {engine}", err=True)
+        sys.exit(1)
+
+    # Engine-specific initialization parameters
+    engine_params = {
+        "say": {"output_devices": devices, "voice": voice, "timeout": timeout},
+        "bark": {
+            "output_devices": devices,
+            "voice_preset": speaker,
+            "sample_rate": sample_rate,
+        },
+    }
+
     try:
-        if engine == "say":
-            tts_engine = SayTTSEngine(
-                output_devices=devices, voice=voice, timeout=timeout
-            )
-        elif engine == "bark":
-            tts_engine = BarkTTSEngine(
-                output_devices=devices,
-                voice_preset=speaker,
-                sample_rate=sample_rate,
-            )
-        else:
-            click.echo(f"Unknown engine: {engine}", err=True)
-            sys.exit(1)
+        tts_engine = engine_class(**engine_params[engine])
 
     except ImportError as e:
         if "bark" in str(e).lower():
