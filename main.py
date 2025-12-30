@@ -140,15 +140,16 @@ def main(
 
     logger = logging.getLogger(__name__)
 
+    # Get the engine class
+    engine_class = ENGINES.get(engine)
+    if not engine_class:
+        click.echo(f"Unknown engine: {engine}", err=True)
+        sys.exit(1)
+
     # Handle --list-voices flag
     if list_voices:
         try:
-            engine_class = ENGINES.get(engine)
-            if engine_class:
-                engine_class.print_available_voices()
-            else:
-                click.echo(f"Unknown engine: {engine}", err=True)
-                sys.exit(1)
+            engine_class.print_available_voices()
             sys.exit(0)
         except Exception as e:
             click.echo(f"Error listing voices: {e}", err=True)
@@ -158,12 +159,6 @@ def main(
 
     # Convert devices tuple to list
     devices = list(devices)
-
-    # Initialize the appropriate TTS engine
-    engine_class = ENGINES.get(engine)
-    if not engine_class:
-        click.echo(f"Unknown engine: {engine}", err=True)
-        sys.exit(1)
 
     # Engine-specific initialization parameters
     engine_params = {
@@ -175,6 +170,7 @@ def main(
         },
     }
 
+    # Initialize the TTS engine
     try:
         tts_engine = engine_class(**engine_params[engine])
 
