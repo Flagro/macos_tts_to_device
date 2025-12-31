@@ -165,7 +165,7 @@ class BarkTTSEngine(TTSEngine):
         output_devices: List[str],
         voice_preset: str = "v2/en_speaker_6",
         sample_rate: int = 24000,
-        tmp_dir: str = None,
+        tmp_dir: Optional[str] = None,
     ):
         """
         Initialize the Bark TTS engine.

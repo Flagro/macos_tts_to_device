@@ -5,7 +5,7 @@ import uuid
 import logging
 import threading
 from abc import ABC, abstractmethod
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import sounddevice as sd
 import soundfile as sf
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class TTSEngine(ABC):
     """Base class for TTS engines with multi-device playback support."""
 
-    def __init__(self, output_devices: List[str], tmp_dir: str = None):
+    def __init__(self, output_devices: List[str], tmp_dir: Optional[str] = None):
         """
         Initialize the TTS engine.
 

@@ -18,7 +18,7 @@ class SayTTSEngine(TTSEngine):
         self,
         output_devices: List[str],
         voice: Optional[str] = None,
-        tmp_dir: str = None,
+        tmp_dir: Optional[str] = None,
         timeout: int = 30,
     ):
         """
