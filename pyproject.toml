@@ -22,14 +22,16 @@ all = [
 ]
 
 [project.scripts]
-macos-tts = "main:main"
+macos-tts-cli = "cli:main"
+macos-tts-gui = "gui:main"
+macos-tts = "cli:main"
 
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
-include = ["main.py"]
+include = ["cli.py", "gui.py"]
 
 [build-system]
 requires = ["hatchling"]
