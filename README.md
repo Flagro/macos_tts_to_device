@@ -2,14 +2,17 @@
 
 A Python utility for routing text-to-speech (TTS) audio to specific output devices on macOS. Useful for streaming TTS to virtual audio devices like BlackHole, OBS, Discord, or any other audio destination.
 
+**Available interfaces**: CLI (Command-line) and GUI (Tkinter-based)
+
 ## Features
 
 - 🎯 **Device Selection**: Route TTS to any audio output device by name
-- 🔊 **Multiple Device Output**: Play audio simultaneously on multiple devices
+- 🖥️ **Dual Interface**: Use either CLI or minimalistic GUI
+- 🔊 **Multiple Device Output**: Play audio simultaneously on multiple devices (CLI only)
 - 🎤 **Two TTS Engines**:
   - **macOS `say`**: Fast, built-in macOS TTS with multiple voice options
   - **Bark AI**: Natural-sounding AI-generated speech with realistic prosody
-- 🔄 **Interactive CLI**: Type text and hear it immediately
+- 🔄 **Interactive Modes**: CLI for typing or GUI for visual control
 - 🧹 **Auto-cleanup**: Temporary audio files are automatically removed
 - ⚡ **Real-time**: Minimal latency from text input to audio output
 
@@ -64,8 +67,9 @@ uv pip install .[all]
 
 ```
 macos_tts_to_device/
-├── main.py              # Single entry point with CLI
-├── src/
+├── cli.py               # Command-line interface
+├── gui.py               # Tkinter GUI interface
+├── src/                 # Shared TTS engine code
 │   ├── __init__.py
 │   ├── tts_base.py      # Base class for TTS engines
 │   ├── tts_say.py       # macOS 'say' implementation
@@ -74,49 +78,79 @@ macos_tts_to_device/
 └── README.md
 ```
 
-## Configuration & Usage
+The `src/` directory contains the core TTS engine implementations that are shared between both the CLI and GUI interfaces.
 
-The utility uses command-line arguments for configuration. No code editing required!
+## Usage
 
-### Basic Usage
+You can use either the **GUI** (graphical interface) or the **CLI** (command-line interface).
+
+### GUI Mode (Recommended for Desktop Use)
+
+Launch the minimalistic Tkinter GUI:
+
+```bash
+python gui.py
+```
+
+**GUI Features**:
+- 🎨 Clean, minimalistic interface
+- 🔘 Radio buttons to switch between Say and Bark engines
+- ✏️ Text input field for device name (e.g., "BlackHole 16ch")
+- 🎤 Optional voice/speaker selection
+- 📝 Multi-line text area for speech input
+- ⌨️ Keyboard shortcut: `Cmd+Enter` or `Ctrl+Enter` to speak
+- 📊 Status bar showing current operation
+
+**Quick Start**:
+1. Select your TTS engine (macOS Say or Bark AI)
+2. Enter your output device name
+3. (Optional) Enter a voice/speaker preset
+4. Type or paste text in the large text area
+5. Click "Speak" or press `Cmd+Enter`
+
+### CLI Mode (Command-Line Interface)
+
+For scripting, automation, or terminal use:
+
+#### Basic Usage
 
 **Using macOS `say` (Fast & Simple)**:
 
 ```bash
-python main.py --engine say --devices "BlackHole 16ch"
+python cli.py --engine say --devices "BlackHole 16ch"
 ```
 
 **Using Bark AI (Natural & Expressive)**:
 
 ```bash
-python main.py --engine bark --devices "External Headphones"
+python cli.py --engine bark --devices "External Headphones"
 ```
 
-### Multiple Device Output
+#### Multiple Device Output
 
 Play audio simultaneously on multiple devices:
 
 ```bash
-python main.py --engine say --devices "BlackHole 16ch" "External Headphones"
+python cli.py --engine say --devices "BlackHole 16ch" "External Headphones"
 ```
 
-### Advanced Options
+#### Advanced CLI Options
 
 **macOS say with specific voice**:
 
 ```bash
-python main.py --engine say --devices "BlackHole 16ch" --voice "Samantha"
+python cli.py --engine say --devices "BlackHole 16ch" --voice "Samantha"
 ```
 
 To see available macOS voices:
 ```bash
-say -v ?
+python cli.py --engine say --list-voices
 ```
 
 **Bark AI with custom speaker**:
 
 ```bash
-python main.py --engine bark --devices "External Headphones" --speaker "v2/en_speaker_3"
+python cli.py --engine bark --devices "External Headphones" --speaker "v2/en_speaker_3"
 ```
 
 Try different speaker presets: `v2/en_speaker_1` through `v2/en_speaker_9`
@@ -132,17 +166,17 @@ print(sd.query_devices())
 
 Or use a partial name match (e.g., "BlackHole", "External", "Headphones").
 
-### Command-Line Help
+#### Command-Line Help
 
-For all available options:
+For all available CLI options:
 
 ```bash
-python main.py --help
+python cli.py --help
 ```
 
-## Interactive Mode
+## CLI Interactive Mode
 
-After starting the program, type text and press Enter:
+After starting the CLI, type text and press Enter:
 
 ```
 Live TTS (macOS say) → Multiple Devices
@@ -192,11 +226,13 @@ Type a line and press Enter (Ctrl+C to quit)
 
 ### Architecture
 
-- **`main.py`**: CLI entry point with argument parsing
+- **`cli.py`**: CLI entry point with argument parsing (click-based)
+- **`gui.py`**: GUI entry point with Tkinter interface
 - **`src/tts_base.py`**: Abstract base class defining the TTS engine interface
 - **`src/tts_say.py`**: Implementation using macOS `say` command
 - **`src/tts_bark.py`**: Implementation using Bark AI model
 - All engines support multi-device playback with automatic cleanup
+- Both CLI and GUI share the same core TTS engine code for consistency
 
 ## Virtual Audio Setup (Optional)
 
@@ -242,7 +278,30 @@ Ensure `OUTPUT_DEVICE` matches a device name (substring matching is supported).
 
 - `sounddevice`: Python bindings for PortAudio (audio I/O)
 - `soundfile`: Audio file reading/writing
+- `click`: CLI argument parsing (CLI only)
+- `tkinter`: GUI toolkit (included with Python)
 - `bark` (optional): Suno's Bark AI TTS model
+
+## Quick Start Scripts
+
+After installation, you can run the tools directly:
+
+**GUI** (after `uv pip install .`):
+```bash
+python gui.py
+```
+
+**CLI** (after `uv pip install .`):
+```bash
+python cli.py --text "Hello world"
+```
+
+Or use the installed scripts:
+```bash
+macos-tts-gui    # Launch GUI
+macos-tts-cli    # Launch CLI with options
+macos-tts        # Shortcut for CLI
+```
 
 ## License
 
