@@ -5,7 +5,7 @@ import uuid
 import logging
 import threading
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
 
 import sounddevice as sd
 import soundfile as sf
@@ -68,6 +68,87 @@ class TTSEngine(ABC):
         all available voices in a user-friendly format.
         """
         pass
+
+    @staticmethod
+    def list_available_devices() -> List[Dict[str, Any]]:
+        """
+        Get a list of all available audio devices.
+
+        Returns:
+            List of dictionaries containing device information with keys:
+            - name: Device name
+            - index: Device index
+            - max_output_channels: Number of output channels
+            - default_samplerate: Default sample rate
+            - hostapi: Host API index
+        """
+        try:
+            devices = sd.query_devices()
+            output_devices = []
+
+            # Filter for output devices (those with output channels)
+            if isinstance(devices, list):
+                for idx, device in enumerate(devices):
+                    if device["max_output_channels"] > 0:
+                        output_devices.append(
+                            {
+                                "name": device["name"],
+                                "index": idx,
+                                "max_output_channels": device["max_output_channels"],
+                                "default_samplerate": device["default_samplerate"],
+                                "hostapi": device["hostapi"],
+                            }
+                        )
+            else:
+                # Single device returned
+                if devices["max_output_channels"] > 0:
+                    output_devices.append(
+                        {
+                            "name": devices["name"],
+                            "index": 0,
+                            "max_output_channels": devices["max_output_channels"],
+                            "default_samplerate": devices["default_samplerate"],
+                            "hostapi": devices["hostapi"],
+                        }
+                    )
+
+            logger.info(f"Found {len(output_devices)} output devices")
+            return output_devices
+        except Exception as e:
+            logger.error(f"Failed to query audio devices: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to query audio devices: {e}") from e
+
+    @staticmethod
+    def print_available_devices():
+        """Print a formatted list of all available audio output devices."""
+        try:
+            devices = TTSEngine.list_available_devices()
+            default_device = (
+                sd.default.device[1]
+                if isinstance(sd.default.device, (list, tuple))
+                else sd.default.device
+            )
+
+            print(f"\nAvailable Audio Output Devices ({len(devices)} total):\n")
+            print(f"{'Index':<6} {'Channels':<9} {'Sample Rate':<12} {'Device Name'}")
+            print("-" * 80)
+
+            for device in devices:
+                is_default = " (default)" if device["index"] == default_device else ""
+                print(
+                    f"{device['index']:<6} "
+                    f"{device['max_output_channels']:<9} "
+                    f"{int(device['default_samplerate']):<12} "
+                    f"{device['name']}{is_default}"
+                )
+
+            print("\nUsage:")
+            print("  - Use device name: --device 'Device Name'")
+            print("  - Use device index: --device 0")
+            print("  - Multiple devices: --device 'Device 1' --device 'Device 2'")
+        except Exception as e:
+            print(f"Error listing audio devices: {e}")
+            logger.error(f"Error in print_available_devices: {e}", exc_info=True)
 
     def play_on_device(self, audio_path: str, sample_rate: int, device_name: str):
         """
