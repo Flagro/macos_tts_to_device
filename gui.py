@@ -9,9 +9,10 @@ import logging
 import threading
 import tkinter as tk
 from tkinter import ttk, scrolledtext
-from typing import Optional
+from typing import Optional, Union, Dict, Any
 
 from src import SayTTSEngine, BarkTTSEngine
+from src.tts_base import TTSEngine
 
 # Configure logging
 logging.basicConfig(
@@ -26,32 +27,42 @@ logger = logging.getLogger(__name__)
 class TTSApp:
     """Minimalistic TTS GUI Application."""
 
-    def __init__(self, root):
-        self.root = root
+    def __init__(self, root: tk.Tk) -> None:
+        self.root: tk.Tk = root
         self.root.title("macOS TTS to Device")
         self.root.geometry("600x500")
         self.root.resizable(True, True)
 
         # State
-        self.tts_engine: Optional[SayTTSEngine | BarkTTSEngine] = None
-        self.is_processing = False
-        self.current_engine_type = "say"
+        self.tts_engine: Optional[Union[SayTTSEngine, BarkTTSEngine]] = None
+        self.is_processing: bool = False
+        self.current_engine_type: str = "say"
 
         # Available engines
-        self.engines = {
+        self.engines: Dict[str, Dict[str, Any]] = {
             "say": {"class": SayTTSEngine, "name": "macOS Say (Fast)"},
             "bark": {"class": BarkTTSEngine, "name": "Bark AI (Natural)"},
         }
+
+        # UI Elements (will be initialized in _create_widgets)
+        self.engine_var: tk.StringVar
+        self.device_var: tk.StringVar
+        self.voice_var: tk.StringVar
+        self.voice_help: ttk.Label
+        self.voice_entry: ttk.Entry
+        self.text_input: scrolledtext.ScrolledText
+        self.speak_button: ttk.Button
+        self.status_var: tk.StringVar
 
         # Create UI
         self._create_widgets()
         self._initialize_default_engine()
 
-    def _create_widgets(self):
+    def _create_widgets(self) -> None:
         """Create all UI widgets."""
 
         # Main container with padding
-        main_frame = ttk.Frame(self.root, padding="10")
+        main_frame: ttk.Frame = ttk.Frame(self.root, padding="10")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
         # Configure grid weights for responsiveness
@@ -64,7 +75,7 @@ class TTSApp:
         ttk.Label(main_frame, text="Engine:").grid(row=0, column=0, sticky=tk.W, pady=5)
 
         self.engine_var = tk.StringVar(value="say")
-        engine_frame = ttk.Frame(main_frame)
+        engine_frame: ttk.Frame = ttk.Frame(main_frame)
         engine_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5)
 
         ttk.Radiobutton(
@@ -89,7 +100,9 @@ class TTSApp:
         )
 
         self.device_var = tk.StringVar(value="BlackHole 16ch")
-        device_entry = ttk.Entry(main_frame, textvariable=self.device_var, width=40)
+        device_entry: ttk.Entry = ttk.Entry(
+            main_frame, textvariable=self.device_var, width=40
+        )
         device_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
 
         # ===== Voice Selection (Engine-specific) =====
@@ -128,7 +141,7 @@ class TTSApp:
         self.text_input.bind("<Control-Return>", lambda e: self._on_speak())
 
         # ===== Buttons =====
-        button_frame = ttk.Frame(main_frame)
+        button_frame: ttk.Frame = ttk.Frame(main_frame)
         button_frame.grid(row=5, column=0, columnspan=2, pady=10)
 
         self.speak_button = ttk.Button(
@@ -145,7 +158,7 @@ class TTSApp:
 
         # ===== Status Bar =====
         self.status_var = tk.StringVar(value="Ready")
-        status_bar = ttk.Label(
+        status_bar: ttk.Label = ttk.Label(
             main_frame,
             textvariable=self.status_var,
             relief=tk.SUNKEN,
@@ -154,13 +167,13 @@ class TTSApp:
         )
         status_bar.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
 
-    def _initialize_default_engine(self):
+    def _initialize_default_engine(self) -> None:
         """Initialize the default TTS engine."""
         self._update_engine()
 
-    def _on_engine_change(self):
+    def _on_engine_change(self) -> None:
         """Handle engine selection change."""
-        new_engine = self.engine_var.get()
+        new_engine: str = self.engine_var.get()
 
         if new_engine == "bark":
             # Update voice help for Bark
@@ -178,11 +191,11 @@ class TTSApp:
         if new_engine != self.current_engine_type:
             self._update_engine()
 
-    def _update_engine(self):
+    def _update_engine(self) -> None:
         """Recreate the TTS engine with current settings."""
-        engine_type = self.engine_var.get()
-        device = self.device_var.get().strip()
-        voice = self.voice_var.get().strip()
+        engine_type: str = self.engine_var.get()
+        device: str = self.device_var.get().strip()
+        voice: str = self.voice_var.get().strip()
 
         if not device:
             device = "BlackHole 16ch"
@@ -190,7 +203,7 @@ class TTSApp:
         try:
             self._set_status("Initializing engine...")
 
-            engine_class = self.engines[engine_type]["class"]
+            engine_class: type[TTSEngine] = self.engines[engine_type]["class"]
 
             if engine_type == "say":
                 self.tts_engine = engine_class(
@@ -206,7 +219,7 @@ class TTSApp:
                 )
 
             self.current_engine_type = engine_type
-            engine_name = self.engines[engine_type]["name"]
+            engine_name: str = self.engines[engine_type]["name"]
             self._set_status(f"Ready - Using {engine_name}")
 
         except ImportError as e:
@@ -222,20 +235,20 @@ class TTSApp:
         except Exception as e:
             self._set_status(f"Error initializing engine: {e}")
 
-    def _on_speak(self):
+    def _on_speak(self) -> None:
         """Handle speak button click."""
         if self.is_processing:
             self._set_status("Already processing...")
             return
 
-        text = self.text_input.get("1.0", tk.END).strip()
+        text: str = self.text_input.get("1.0", tk.END).strip()
         if not text:
             self._set_status("Please enter some text")
             return
 
         # Update engine if settings changed
-        device = self.device_var.get().strip()
-        voice = self.voice_var.get().strip()
+        device: str = self.device_var.get().strip()
+        voice: str = self.voice_var.get().strip()
 
         # Check if we need to reinitialize
         if (
@@ -251,37 +264,37 @@ class TTSApp:
         # Speak in background thread
         threading.Thread(target=self._speak_threaded, args=(text,), daemon=True).start()
 
-    def _speak_threaded(self, text: str):
+    def _speak_threaded(self, text: str) -> None:
         """Speak text in a background thread."""
         self.is_processing = True
         self.root.after(0, lambda: self.speak_button.config(state="disabled"))
         self.root.after(0, lambda: self._set_status("Generating speech..."))
 
         try:
-            self.tts_engine.process_text(text)
+            self.tts_engine.process_text(text)  # type: ignore[union-attr]
             self.root.after(0, lambda: self._set_status("Playback complete"))
         except Exception as e:
-            error_msg = f"Error: {str(e)}"
+            error_msg: str = f"Error: {str(e)}"
             self.root.after(0, lambda: self._set_status(error_msg))
             logger.error(f"Error during TTS processing: {e}", exc_info=True)
         finally:
             self.is_processing = False
             self.root.after(0, lambda: self.speak_button.config(state="normal"))
 
-    def _on_clear(self):
+    def _on_clear(self) -> None:
         """Clear the text input."""
         self.text_input.delete("1.0", tk.END)
         self.text_input.focus()
 
-    def _set_status(self, message: str):
+    def _set_status(self, message: str) -> None:
         """Update the status bar."""
         self.status_var.set(message)
         logger.info(f"Status: {message}")
 
 
-def main():
+def main() -> None:
     """Main entry point for the GUI application."""
-    root = tk.Tk()
+    root: tk.Tk = tk.Tk()
 
     # Tkinter on macOS already uses native appearance by default
     app = TTSApp(root)
