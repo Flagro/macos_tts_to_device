@@ -51,6 +51,9 @@ class TTSApp:
         self.engine_var: tk.StringVar
         self.device_var: tk.StringVar
         self.device_combo: ttk.Combobox
+        self.sample_rate_var: tk.StringVar
+        self.sample_rate_combo: ttk.Combobox
+        self.sample_rate_label: ttk.Label
         self.voice_var: tk.StringVar
         self.voice_help: ttk.Label
         self.voice_entry: ttk.Entry
@@ -61,6 +64,7 @@ class TTSApp:
         # Create UI
         self._create_widgets()
         self._load_audio_devices()
+        self._update_ui_for_engine()  # Hide/show elements based on initial engine
         self._initialize_default_engine()
 
     def _create_widgets(self) -> None:
@@ -74,7 +78,7 @@ class TTSApp:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(4, weight=1)
+        main_frame.rowconfigure(5, weight=1)  # Updated from 4 to 5 for sample rate row
 
         # ===== Engine Selection =====
         ttk.Label(main_frame, text="Engine:").grid(row=0, column=0, sticky=tk.W, pady=5)
@@ -110,14 +114,30 @@ class TTSApp:
         )
         self.device_combo.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
 
+        # ===== Sample Rate Selection =====
+        self.sample_rate_label = ttk.Label(main_frame, text="Sample Rate:")
+        self.sample_rate_label.grid(row=2, column=0, sticky=tk.W, pady=5)
+
+        self.sample_rate_var = tk.StringVar(value="24000")
+        self.sample_rate_combo = ttk.Combobox(
+            main_frame,
+            textvariable=self.sample_rate_var,
+            values=["16000", "22050", "24000", "44100", "48000"],
+            width=37,
+            state="readonly",
+        )
+        self.sample_rate_combo.grid(
+            row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=5
+        )
+
         # ===== Voice Selection (Engine-specific) =====
         ttk.Label(main_frame, text="Voice/Speaker:").grid(
-            row=2, column=0, sticky=tk.W, pady=5
+            row=3, column=0, sticky=tk.W, pady=5
         )
 
         self.voice_var = tk.StringVar(value="")
         self.voice_entry = ttk.Entry(main_frame, textvariable=self.voice_var, width=40)
-        self.voice_entry.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
+        self.voice_entry.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
 
         # Help text for voice
         self.voice_help = ttk.Label(
@@ -126,18 +146,18 @@ class TTSApp:
             font=("", 9),
             foreground="gray",
         )
-        self.voice_help.grid(row=3, column=1, sticky=tk.W, padx=5)
+        self.voice_help.grid(row=4, column=1, sticky=tk.W, padx=5)
 
         # ===== Text Input =====
         ttk.Label(main_frame, text="Text to Speak:").grid(
-            row=4, column=0, sticky=(tk.W, tk.N), pady=5
+            row=5, column=0, sticky=(tk.W, tk.N), pady=5
         )
 
         self.text_input = scrolledtext.ScrolledText(
             main_frame, height=10, width=50, wrap=tk.WORD, font=("", 11)
         )
         self.text_input.grid(
-            row=4, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5, padx=5
+            row=5, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5, padx=5
         )
         self.text_input.focus()
 
@@ -147,7 +167,7 @@ class TTSApp:
 
         # ===== Buttons =====
         button_frame: ttk.Frame = ttk.Frame(main_frame)
-        button_frame.grid(row=5, column=0, columnspan=2, pady=10)
+        button_frame.grid(row=6, column=0, columnspan=2, pady=10)
 
         self.speak_button = ttk.Button(
             button_frame,
@@ -170,7 +190,7 @@ class TTSApp:
             anchor=tk.W,
             padding=(5, 2),
         )
-        status_bar.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        status_bar.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
 
     def _initialize_default_engine(self) -> None:
         """Initialize the default TTS engine."""
@@ -203,29 +223,47 @@ class TTSApp:
 
     def _on_engine_change(self) -> None:
         """Handle engine selection change."""
-        new_engine: str = self.engine_var.get()
+        self._update_ui_for_engine()
 
-        if new_engine == "bark":
+        new_engine: str = self.engine_var.get()
+        if new_engine != self.current_engine_type:
+            self._update_engine()
+
+    def _update_ui_for_engine(self) -> None:
+        """Update UI elements based on selected engine."""
+        engine_type: str = self.engine_var.get()
+
+        if engine_type == "bark":
             # Update voice help for Bark
             self.voice_help.config(
                 text="(Optional) e.g., 'v2/en_speaker_6' - leave empty for default"
             )
-            self.voice_var.set("v2/en_speaker_6")
+            if not self.voice_var.get() or self.voice_var.get() in [
+                "",
+                "Alex",
+                "Samantha",
+            ]:
+                self.voice_var.set("v2/en_speaker_6")
+            # Show sample rate for Bark
+            self.sample_rate_label.grid()
+            self.sample_rate_combo.grid()
         else:
             # Update voice help for Say
             self.voice_help.config(
                 text="(Optional) e.g., 'Alex', 'Samantha' - leave empty for default"
             )
-            self.voice_var.set("")
-
-        if new_engine != self.current_engine_type:
-            self._update_engine()
+            if self.voice_var.get().startswith("v2/"):
+                self.voice_var.set("")
+            # Hide sample rate for Say (not applicable)
+            self.sample_rate_label.grid_remove()
+            self.sample_rate_combo.grid_remove()
 
     def _update_engine(self) -> None:
         """Recreate the TTS engine with current settings."""
         engine_type: str = self.engine_var.get()
         device: str = self.device_var.get().strip()
         voice: str = self.voice_var.get().strip()
+        sample_rate: int = int(self.sample_rate_var.get())
 
         if not device:
             device = "BlackHole 16ch"
@@ -245,7 +283,7 @@ class TTSApp:
                 self.tts_engine = engine_class(
                     output_devices=[device],
                     voice_preset=voice if voice else "v2/en_speaker_6",
-                    sample_rate=24000,
+                    sample_rate=sample_rate,
                 )
 
             self.current_engine_type = engine_type
