@@ -44,9 +44,13 @@ class TTSApp:
             "bark": {"class": BarkTTSEngine, "name": "Bark AI (Natural)"},
         }
 
+        # Available audio devices
+        self.available_devices: list[str] = []
+
         # UI Elements (will be initialized in _create_widgets)
         self.engine_var: tk.StringVar
         self.device_var: tk.StringVar
+        self.device_combo: ttk.Combobox
         self.voice_var: tk.StringVar
         self.voice_help: ttk.Label
         self.voice_entry: ttk.Entry
@@ -56,6 +60,7 @@ class TTSApp:
 
         # Create UI
         self._create_widgets()
+        self._load_audio_devices()
         self._initialize_default_engine()
 
     def _create_widgets(self) -> None:
@@ -100,10 +105,10 @@ class TTSApp:
         )
 
         self.device_var = tk.StringVar(value="BlackHole 16ch")
-        device_entry: ttk.Entry = ttk.Entry(
-            main_frame, textvariable=self.device_var, width=40
+        self.device_combo = ttk.Combobox(
+            main_frame, textvariable=self.device_var, width=37, state="readonly"
         )
-        device_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
+        self.device_combo.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
 
         # ===== Voice Selection (Engine-specific) =====
         ttk.Label(main_frame, text="Voice/Speaker:").grid(
@@ -170,6 +175,31 @@ class TTSApp:
     def _initialize_default_engine(self) -> None:
         """Initialize the default TTS engine."""
         self._update_engine()
+
+    def _load_audio_devices(self) -> None:
+        """Load available audio devices into the dropdown."""
+        try:
+            devices = TTSEngine.list_available_devices()
+            self.available_devices = [device["name"] for device in devices]
+
+            if self.available_devices:
+                self.device_combo["values"] = self.available_devices
+
+                # Try to select BlackHole 16ch if available, otherwise first device
+                if "BlackHole 16ch" in self.available_devices:
+                    self.device_var.set("BlackHole 16ch")
+                else:
+                    self.device_var.set(self.available_devices[0])
+            else:
+                self.device_combo["values"] = ["No devices found"]
+                self.device_var.set("No devices found")
+                self._set_status("Warning: No audio output devices found")
+
+        except Exception as e:
+            logger.error(f"Failed to load audio devices: {e}", exc_info=True)
+            self.device_combo["values"] = ["Error loading devices"]
+            self.device_var.set("Error loading devices")
+            self._set_status(f"Error loading devices: {e}")
 
     def _on_engine_change(self) -> None:
         """Handle engine selection change."""
