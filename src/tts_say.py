@@ -6,7 +6,7 @@ from typing import Tuple, Optional, List
 
 import soundfile as sf
 
-from .tts_base import TTSEngine
+from src.tts_base import TTSEngine
 
 logger = logging.getLogger(__name__)
 

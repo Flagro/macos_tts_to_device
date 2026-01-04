@@ -3,9 +3,9 @@
 import logging
 import numpy as np
 import soundfile as sf
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 
-from .tts_base import TTSEngine
+from src.tts_base import TTSEngine
 
 logger = logging.getLogger(__name__)
 
