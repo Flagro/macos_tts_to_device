@@ -46,11 +46,12 @@ class TTSApp:
 
         # Available audio devices
         self.available_devices: list[str] = []
+        self.device_vars: Dict[str, tk.BooleanVar] = {}  # Device name -> BooleanVar
 
         # UI Elements (will be initialized in _create_widgets)
         self.engine_var: tk.StringVar
-        self.device_var: tk.StringVar
-        self.device_combo: ttk.Combobox
+        self.device_frame: ttk.Frame
+        self.device_checkboxes: list[ttk.Checkbutton] = []
         self.sample_rate_var: tk.StringVar
         self.sample_rate_combo: ttk.Combobox
         self.sample_rate_label: ttk.Label
@@ -103,16 +104,16 @@ class TTSApp:
             command=self._on_engine_change,
         ).pack(side=tk.LEFT, padx=5)
 
-        # ===== Output Device =====
-        ttk.Label(main_frame, text="Output Device:").grid(
-            row=1, column=0, sticky=tk.W, pady=5
+        # ===== Output Devices =====
+        ttk.Label(main_frame, text="Output Devices:").grid(
+            row=1, column=0, sticky=(tk.W, tk.N), pady=5
         )
 
-        self.device_var = tk.StringVar(value="BlackHole 16ch")
-        self.device_combo = ttk.Combobox(
-            main_frame, textvariable=self.device_var, width=37, state="readonly"
+        # Frame for device checkboxes (will be populated by _load_audio_devices)
+        self.device_frame = ttk.Frame(main_frame)
+        self.device_frame.grid(
+            row=1, column=1, sticky=(tk.W, tk.E, tk.N), pady=5, padx=5
         )
-        self.device_combo.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
 
         # ===== Sample Rate Selection =====
         self.sample_rate_label = ttk.Label(main_frame, text="Sample Rate:")
@@ -197,28 +198,46 @@ class TTSApp:
         self._update_engine()
 
     def _load_audio_devices(self) -> None:
-        """Load available audio devices into the dropdown."""
+        """Load available audio devices and create checkboxes."""
         try:
             devices = TTSEngine.list_available_devices()
             self.available_devices = [device["name"] for device in devices]
 
             if self.available_devices:
-                self.device_combo["values"] = self.available_devices
+                # Clear existing checkboxes
+                for checkbox in self.device_checkboxes:
+                    checkbox.destroy()
+                self.device_checkboxes.clear()
+                self.device_vars.clear()
 
-                # Try to select BlackHole 16ch if available, otherwise first device
+                # Create a checkbox for each device
+                for device_name in self.available_devices:
+                    var = tk.BooleanVar(value=False)
+                    self.device_vars[device_name] = var
+
+                    checkbox = ttk.Checkbutton(
+                        self.device_frame, text=device_name, variable=var
+                    )
+                    checkbox.pack(anchor=tk.W, pady=2)
+                    self.device_checkboxes.append(checkbox)
+
+                # Try to select BlackHole 16ch by default if available
                 if "BlackHole 16ch" in self.available_devices:
-                    self.device_var.set("BlackHole 16ch")
-                else:
-                    self.device_var.set(self.available_devices[0])
+                    self.device_vars["BlackHole 16ch"].set(True)
+                elif self.available_devices:
+                    # Select first device by default
+                    self.device_vars[self.available_devices[0]].set(True)
             else:
-                self.device_combo["values"] = ["No devices found"]
-                self.device_var.set("No devices found")
+                ttk.Label(
+                    self.device_frame, text="No devices found", foreground="red"
+                ).pack(anchor=tk.W)
                 self._set_status("Warning: No audio output devices found")
 
         except Exception as e:
             logger.error(f"Failed to load audio devices: {e}", exc_info=True)
-            self.device_combo["values"] = ["Error loading devices"]
-            self.device_var.set("Error loading devices")
+            ttk.Label(
+                self.device_frame, text=f"Error loading devices: {e}", foreground="red"
+            ).pack(anchor=tk.W)
             self._set_status(f"Error loading devices: {e}")
 
     def _on_engine_change(self) -> None:
@@ -258,15 +277,22 @@ class TTSApp:
             self.sample_rate_label.grid_remove()
             self.sample_rate_combo.grid_remove()
 
+    def _get_selected_devices(self) -> list[str]:
+        """Get list of currently selected devices."""
+        return [
+            device_name for device_name, var in self.device_vars.items() if var.get()
+        ]
+
     def _update_engine(self) -> None:
         """Recreate the TTS engine with current settings."""
         engine_type: str = self.engine_var.get()
-        device: str = self.device_var.get().strip()
+        selected_devices: list[str] = self._get_selected_devices()
         voice: str = self.voice_var.get().strip()
         sample_rate: int = int(self.sample_rate_var.get())
 
-        if not device:
-            device = "BlackHole 16ch"
+        if not selected_devices:
+            self._set_status("Error: Please select at least one output device")
+            return
 
         try:
             self._set_status("Initializing engine...")
@@ -275,20 +301,23 @@ class TTSApp:
 
             if engine_type == "say":
                 self.tts_engine = engine_class(
-                    output_devices=[device],
+                    output_devices=selected_devices,
                     voice=voice if voice else None,
                     timeout=30,
                 )
             else:  # bark
                 self.tts_engine = engine_class(
-                    output_devices=[device],
+                    output_devices=selected_devices,
                     voice_preset=voice if voice else "v2/en_speaker_6",
                     sample_rate=sample_rate,
                 )
 
             self.current_engine_type = engine_type
             engine_name: str = self.engines[engine_type]["name"]
-            self._set_status(f"Ready - Using {engine_name}")
+            device_count: str = (
+                f"{len(selected_devices)} device{'s' if len(selected_devices) > 1 else ''}"
+            )
+            self._set_status(f"Ready - Using {engine_name} ({device_count})")
 
         except ImportError as e:
             if "bark" in str(e).lower():
@@ -314,8 +343,13 @@ class TTSApp:
             self._set_status("Please enter some text")
             return
 
+        # Get selected devices
+        selected_devices: list[str] = self._get_selected_devices()
+        if not selected_devices:
+            self._set_status("Error: Please select at least one output device")
+            return
+
         # Update engine if settings changed
-        device: str = self.device_var.get().strip()
         voice: str = self.voice_var.get().strip()
 
         # Check if we need to reinitialize
@@ -325,7 +359,7 @@ class TTSApp:
                 isinstance(self.tts_engine, SayTTSEngine)
                 and self.tts_engine.voice != (voice if voice else None)
             )
-            or self.tts_engine.output_devices != [device]
+            or set(self.tts_engine.output_devices) != set(selected_devices)
         ):
             self._update_engine()
 
