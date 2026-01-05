@@ -13,12 +13,13 @@ from typing import Optional, Union, Dict, Any
 
 from src import SayTTSEngine, BarkTTSEngine
 from src.tts_base import TTSEngine
+import settings
 
 # Configure logging
 logging.basicConfig(
-    level=logging.WARNING,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
+    level=getattr(logging, settings.LOG_LEVEL),
+    format=settings.LOG_FORMAT,
+    datefmt=settings.LOG_DATE_FORMAT,
 )
 
 logger = logging.getLogger(__name__)
@@ -29,19 +30,25 @@ class TTSApp:
 
     def __init__(self, root: tk.Tk) -> None:
         self.root: tk.Tk = root
-        self.root.title("macOS TTS to Device")
-        self.root.geometry("600x500")
+        self.root.title(settings.WINDOW_TITLE)
+        self.root.geometry(f"{settings.WINDOW_WIDTH}x{settings.WINDOW_HEIGHT}")
         self.root.resizable(True, True)
 
         # State
         self.tts_engine: Optional[Union[SayTTSEngine, BarkTTSEngine]] = None
         self.is_processing: bool = False
-        self.current_engine_type: str = "say"
+        self.current_engine_type: str = settings.DEFAULT_ENGINE
 
         # Available engines
         self.engines: Dict[str, Dict[str, Any]] = {
-            "say": {"class": SayTTSEngine, "name": "macOS Say (Fast)"},
-            "bark": {"class": BarkTTSEngine, "name": "Bark AI (Natural)"},
+            "say": {
+                "class": SayTTSEngine,
+                "name": settings.ENGINE_METADATA["say"]["name"],
+            },
+            "bark": {
+                "class": BarkTTSEngine,
+                "name": settings.ENGINE_METADATA["bark"]["name"],
+            },
         }
 
         # Available audio devices
@@ -84,13 +91,13 @@ class TTSApp:
         # ===== Engine Selection =====
         ttk.Label(main_frame, text="Engine:").grid(row=0, column=0, sticky=tk.W, pady=5)
 
-        self.engine_var = tk.StringVar(value="say")
+        self.engine_var = tk.StringVar(value=settings.DEFAULT_ENGINE)
         engine_frame: ttk.Frame = ttk.Frame(main_frame)
         engine_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5)
 
         ttk.Radiobutton(
             engine_frame,
-            text="macOS Say (Fast)",
+            text=settings.ENGINE_METADATA["say"]["name"],
             variable=self.engine_var,
             value="say",
             command=self._on_engine_change,
@@ -98,7 +105,7 @@ class TTSApp:
 
         ttk.Radiobutton(
             engine_frame,
-            text="Bark AI (Natural)",
+            text=settings.ENGINE_METADATA["bark"]["name"],
             variable=self.engine_var,
             value="bark",
             command=self._on_engine_change,
@@ -119,11 +126,11 @@ class TTSApp:
         self.sample_rate_label = ttk.Label(main_frame, text="Sample Rate:")
         self.sample_rate_label.grid(row=2, column=0, sticky=tk.W, pady=5)
 
-        self.sample_rate_var = tk.StringVar(value="24000")
+        self.sample_rate_var = tk.StringVar(value=settings.DEFAULT_SAMPLE_RATE)
         self.sample_rate_combo = ttk.Combobox(
             main_frame,
             textvariable=self.sample_rate_var,
-            values=["16000", "22050", "24000", "44100", "48000"],
+            values=settings.AVAILABLE_SAMPLE_RATES,
             width=37,
             state="readonly",
         )
@@ -136,15 +143,15 @@ class TTSApp:
             row=3, column=0, sticky=tk.W, pady=5
         )
 
-        self.voice_var = tk.StringVar(value="")
+        self.voice_var = tk.StringVar(value=settings.DEFAULT_SAY_VOICE)
         self.voice_entry = ttk.Entry(main_frame, textvariable=self.voice_var, width=40)
         self.voice_entry.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
 
         # Help text for voice
         self.voice_help = ttk.Label(
             main_frame,
-            text="(Optional) e.g., 'Alex', 'Samantha' - leave empty for default",
-            font=("", 9),
+            text=settings.VOICE_HELP_SAY,
+            font=("", settings.HELP_TEXT_FONT_SIZE),
             foreground="gray",
         )
         self.voice_help.grid(row=4, column=1, sticky=tk.W, padx=5)
@@ -155,7 +162,11 @@ class TTSApp:
         )
 
         self.text_input = scrolledtext.ScrolledText(
-            main_frame, height=10, width=50, wrap=tk.WORD, font=("", 11)
+            main_frame,
+            height=settings.TEXT_INPUT_HEIGHT,
+            width=settings.TEXT_INPUT_WIDTH,
+            wrap=tk.WORD,
+            font=("", settings.TEXT_INPUT_FONT_SIZE),
         )
         self.text_input.grid(
             row=5, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5, padx=5
@@ -221,9 +232,9 @@ class TTSApp:
                     checkbox.pack(anchor=tk.W, pady=2)
                     self.device_checkboxes.append(checkbox)
 
-                # Try to select BlackHole 16ch by default if available
-                if "BlackHole 16ch" in self.available_devices:
-                    self.device_vars["BlackHole 16ch"].set(True)
+                # Try to select preferred device by default if available
+                if settings.PREFERRED_DEFAULT_DEVICE in self.available_devices:
+                    self.device_vars[settings.PREFERRED_DEFAULT_DEVICE].set(True)
                 elif self.available_devices:
                     # Select first device by default
                     self.device_vars[self.available_devices[0]].set(True)
@@ -254,25 +265,21 @@ class TTSApp:
 
         if engine_type == "bark":
             # Update voice help for Bark
-            self.voice_help.config(
-                text="(Optional) e.g., 'v2/en_speaker_6' - leave empty for default"
-            )
+            self.voice_help.config(text=settings.VOICE_HELP_BARK)
             if not self.voice_var.get() or self.voice_var.get() in [
                 "",
                 "Alex",
                 "Samantha",
             ]:
-                self.voice_var.set("v2/en_speaker_6")
+                self.voice_var.set(settings.DEFAULT_BARK_SPEAKER)
             # Show sample rate for Bark
             self.sample_rate_label.grid()
             self.sample_rate_combo.grid()
         else:
             # Update voice help for Say
-            self.voice_help.config(
-                text="(Optional) e.g., 'Alex', 'Samantha' - leave empty for default"
-            )
+            self.voice_help.config(text=settings.VOICE_HELP_SAY)
             if self.voice_var.get().startswith("v2/"):
-                self.voice_var.set("")
+                self.voice_var.set(settings.DEFAULT_SAY_VOICE)
             # Hide sample rate for Say (not applicable)
             self.sample_rate_label.grid_remove()
             self.sample_rate_combo.grid_remove()
@@ -303,12 +310,12 @@ class TTSApp:
                 self.tts_engine = engine_class(
                     output_devices=selected_devices,
                     voice=voice if voice else None,
-                    timeout=30,
+                    timeout=settings.SAY_ENGINE_TIMEOUT,
                 )
             else:  # bark
                 self.tts_engine = engine_class(
                     output_devices=selected_devices,
-                    voice_preset=voice if voice else "v2/en_speaker_6",
+                    voice_preset=voice if voice else settings.DEFAULT_BARK_SPEAKER,
                     sample_rate=sample_rate,
                 )
 
