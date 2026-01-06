@@ -11,6 +11,7 @@ import logging
 import click
 
 from src import SayTTSEngine, BarkTTSEngine
+import settings
 
 # Engine registry for cleaner code
 ENGINES = {
@@ -23,14 +24,14 @@ ENGINES = {
 @click.option(
     "--engine",
     type=click.Choice(["say", "bark"], case_sensitive=False),
-    default="say",
+    default=settings.DEFAULT_ENGINE,
     show_default=True,
     help="TTS engine to use.",
 )
 @click.option(
     "--devices",
     multiple=True,
-    default=["BlackHole 16ch"],
+    default=[settings.PREFERRED_DEFAULT_DEVICE],
     help="Output device name(s) - can be partial match. Can be specified multiple times.",
 )
 @click.option(
@@ -42,28 +43,28 @@ ENGINES = {
 @click.option(
     "--timeout",
     type=int,
-    default=30,
+    default=settings.SAY_ENGINE_TIMEOUT,
     show_default=True,
     help="[Say engine] Timeout in seconds for the 'say' command.",
 )
 @click.option(
     "--speaker",
     type=str,
-    default="v2/en_speaker_6",
+    default=settings.DEFAULT_BARK_SPEAKER,
     show_default=True,
     help="[Bark engine] Bark voice preset. Try speaker_1 through speaker_9.",
 )
 @click.option(
     "--sample-rate",
     type=int,
-    default=24000,
+    default=int(settings.DEFAULT_SAMPLE_RATE),
     show_default=True,
     help="[Bark engine] Bark output sample rate in Hz.",
 )
 @click.option(
     "--log-level",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"], case_sensitive=False),
-    default="WARNING",
+    default=settings.LOG_LEVEL,
     show_default=True,
     help="Set logging level for debugging and detailed output.",
 )
@@ -134,8 +135,8 @@ def main(
 
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+        format=settings.LOG_FORMAT,
+        datefmt=settings.LOG_DATE_FORMAT,
     )
 
     logger = logging.getLogger(__name__)
