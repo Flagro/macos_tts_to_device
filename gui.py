@@ -360,14 +360,26 @@ class TTSApp:
         voice: str = self.voice_var.get().strip()
 
         # Check if we need to reinitialize
-        if (
-            not self.tts_engine
-            or (
-                isinstance(self.tts_engine, SayTTSEngine)
-                and self.tts_engine.voice != (voice if voice else None)
-            )
-            or set(self.tts_engine.output_devices) != set(selected_devices)
-        ):
+        needs_reinit = False
+
+        if not self.tts_engine:
+            needs_reinit = True
+        elif set(self.tts_engine.output_devices) != set(selected_devices):
+            needs_reinit = True
+        elif isinstance(self.tts_engine, SayTTSEngine):
+            # Check if Say voice changed
+            if self.tts_engine.voice != (voice if voice else None):
+                needs_reinit = True
+        elif isinstance(self.tts_engine, BarkTTSEngine):
+            # Check if Bark settings changed
+            current_sample_rate = int(self.sample_rate_var.get())
+            if (
+                self.tts_engine.voice_preset != voice
+                or self.tts_engine.sample_rate != current_sample_rate
+            ):
+                needs_reinit = True
+
+        if needs_reinit:
             self._update_engine()
 
         # Speak in background thread
