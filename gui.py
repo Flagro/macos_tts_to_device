@@ -37,6 +37,7 @@ class TTSApp:
         # State
         self.tts_engine: Optional[Union[SayTTSEngine, BarkTTSEngine]] = None
         self.is_processing: bool = False
+        self.processing_lock: threading.Lock = threading.Lock()
         self.current_engine_type: str = settings.DEFAULT_ENGINE
 
         # Available engines
@@ -341,54 +342,70 @@ class TTSApp:
 
     def _on_speak(self) -> None:
         """Handle speak button click."""
-        if self.is_processing:
-            self._set_status("Already processing...")
-            return
+        # Check and set processing flag atomically
+        with self.processing_lock:
+            if self.is_processing:
+                self._set_status("Already processing...")
+                return
+            self.is_processing = True
 
-        text: str = self.text_input.get("1.0", tk.END).strip()
-        if not text:
-            self._set_status("Please enter some text")
-            return
+        try:
+            text: str = self.text_input.get("1.0", tk.END).strip()
+            if not text:
+                self._set_status("Please enter some text")
+                with self.processing_lock:
+                    self.is_processing = False
+                return
 
-        # Get selected devices
-        selected_devices: list[str] = self._get_selected_devices()
-        if not selected_devices:
-            self._set_status("Error: Please select at least one output device")
-            return
+            # Get selected devices
+            selected_devices: list[str] = self._get_selected_devices()
+            if not selected_devices:
+                self._set_status("Error: Please select at least one output device")
+                with self.processing_lock:
+                    self.is_processing = False
+                return
 
-        # Update engine if settings changed
-        voice: str = self.voice_var.get().strip()
+            # Update engine if settings changed
+            voice: str = self.voice_var.get().strip()
 
-        # Check if we need to reinitialize
-        needs_reinit = False
+            # Check if we need to reinitialize
+            needs_reinit = False
 
-        if not self.tts_engine:
-            needs_reinit = True
-        elif set(self.tts_engine.output_devices) != set(selected_devices):
-            needs_reinit = True
-        elif isinstance(self.tts_engine, SayTTSEngine):
-            # Check if Say voice changed
-            if self.tts_engine.voice != (voice if voice else None):
+            if not self.tts_engine:
                 needs_reinit = True
-        elif isinstance(self.tts_engine, BarkTTSEngine):
-            # Check if Bark settings changed
-            current_sample_rate = int(self.sample_rate_var.get())
-            if (
-                self.tts_engine.voice_preset != voice
-                or self.tts_engine.sample_rate != current_sample_rate
-            ):
+            elif set(self.tts_engine.output_devices) != set(selected_devices):
                 needs_reinit = True
+            elif isinstance(self.tts_engine, SayTTSEngine):
+                # Check if Say voice changed
+                if self.tts_engine.voice != (voice if voice else None):
+                    needs_reinit = True
+            elif isinstance(self.tts_engine, BarkTTSEngine):
+                # Check if Bark settings changed
+                current_sample_rate = int(self.sample_rate_var.get())
+                if (
+                    self.tts_engine.voice_preset != voice
+                    or self.tts_engine.sample_rate != current_sample_rate
+                ):
+                    needs_reinit = True
 
-        if needs_reinit:
-            self._update_engine()
+            if needs_reinit:
+                self._update_engine()
 
-        # Speak in background thread
-        threading.Thread(target=self._speak_threaded, args=(text,), daemon=True).start()
+            # Disable button in main thread
+            self.speak_button.config(state="disabled")
+
+            # Speak in background thread
+            threading.Thread(
+                target=self._speak_threaded, args=(text,), daemon=True
+            ).start()
+        except Exception as e:
+            # If any error occurs before thread starts, reset processing flag
+            with self.processing_lock:
+                self.is_processing = False
+            raise
 
     def _speak_threaded(self, text: str) -> None:
         """Speak text in a background thread."""
-        self.is_processing = True
-        self.root.after(0, lambda: self.speak_button.config(state="disabled"))
         self.root.after(0, lambda: self._set_status("Generating speech..."))
 
         try:
@@ -399,7 +416,8 @@ class TTSApp:
             self.root.after(0, lambda: self._set_status(error_msg))
             logger.error(f"Error during TTS processing: {e}", exc_info=True)
         finally:
-            self.is_processing = False
+            with self.processing_lock:
+                self.is_processing = False
             self.root.after(0, lambda: self.speak_button.config(state="normal"))
 
     def _on_clear(self) -> None:
