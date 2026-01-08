@@ -113,9 +113,16 @@ class TTSApp:
         ).pack(side=tk.LEFT, padx=5)
 
         # ===== Output Devices =====
-        ttk.Label(main_frame, text="Output Devices:").grid(
-            row=1, column=0, sticky=(tk.W, tk.N), pady=5
-        )
+        device_label_frame = ttk.Frame(main_frame)
+        device_label_frame.grid(row=1, column=0, sticky=(tk.W, tk.N), pady=5)
+
+        ttk.Label(device_label_frame, text="Output Devices:").pack(anchor=tk.W)
+        ttk.Button(
+            device_label_frame,
+            text="↻ Refresh",
+            command=self._on_refresh_devices,
+            width=10,
+        ).pack(anchor=tk.W, pady=(2, 0))
 
         # Frame for device checkboxes (will be populated by _load_audio_devices)
         self.device_frame = ttk.Frame(main_frame)
@@ -212,15 +219,16 @@ class TTSApp:
     def _load_audio_devices(self) -> None:
         """Load available audio devices and create checkboxes."""
         try:
+            # Clear all existing widgets in device frame (checkboxes and any error labels)
+            for widget in self.device_frame.winfo_children():
+                widget.destroy()
+            self.device_checkboxes.clear()
+            self.device_vars.clear()
+
             devices = TTSEngine.list_available_devices()
             self.available_devices = [device["name"] for device in devices]
 
             if self.available_devices:
-                # Clear existing checkboxes
-                for checkbox in self.device_checkboxes:
-                    checkbox.destroy()
-                self.device_checkboxes.clear()
-                self.device_vars.clear()
 
                 # Create a checkbox for each device
                 for device_name in self.available_devices:
@@ -251,6 +259,34 @@ class TTSApp:
                 self.device_frame, text=f"Error loading devices: {e}", foreground="red"
             ).pack(anchor=tk.W)
             self._set_status(f"Error loading devices: {e}")
+
+    def _on_refresh_devices(self) -> None:
+        """Refresh the list of available audio devices."""
+        # Save currently selected devices
+        previously_selected = self._get_selected_devices()
+
+        # Reload devices
+        self._load_audio_devices()
+
+        # Restore previously selected devices if they still exist
+        for device_name in previously_selected:
+            if device_name in self.device_vars:
+                self.device_vars[device_name].set(True)
+
+        # Update status
+        device_count = len(self.available_devices)
+        self._set_status(
+            f"Refreshed - Found {device_count} device{'s' if device_count != 1 else ''}"
+        )
+
+        # If engine is already initialized and selected devices changed, update it
+        selected_devices = self._get_selected_devices()
+        if (
+            self.tts_engine
+            and selected_devices
+            and set(self.tts_engine.output_devices) != set(selected_devices)
+        ):
+            self._update_engine()
 
     def _on_engine_change(self) -> None:
         """Handle engine selection change."""
