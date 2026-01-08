@@ -9,7 +9,7 @@ import logging
 import threading
 import tkinter as tk
 from tkinter import ttk, scrolledtext
-from typing import Optional, Union, Dict, Any
+from typing import Optional, Union, Any
 
 from src import SayTTSEngine, BarkTTSEngine
 from src.tts_base import TTSEngine
@@ -41,7 +41,7 @@ class TTSApp:
         self.current_engine_type: str = settings.DEFAULT_ENGINE
 
         # Available engines
-        self.engines: Dict[str, Dict[str, Any]] = {
+        self.engines: dict[str, dict[str, Any]] = {
             "say": {
                 "class": SayTTSEngine,
                 "name": settings.ENGINE_METADATA["say"]["name"],
@@ -54,7 +54,7 @@ class TTSApp:
 
         # Available audio devices
         self.available_devices: list[str] = []
-        self.device_vars: Dict[str, tk.BooleanVar] = {}  # Device name -> BooleanVar
+        self.device_vars: dict[str, tk.BooleanVar] = {}  # Device name -> BooleanVar
 
         # UI Elements (will be initialized in _create_widgets)
         self.engine_var: tk.StringVar
