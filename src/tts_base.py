@@ -5,7 +5,7 @@ import uuid
 import logging
 import threading
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple, Dict, Any
+from typing import Optional, Any
 
 import sounddevice as sd
 import soundfile as sf
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class TTSEngine(ABC):
     """Base class for TTS engines with multi-device playback support."""
 
-    def __init__(self, output_devices: List[str], tmp_dir: Optional[str] = None):
+    def __init__(self, output_devices: list[str], tmp_dir: Optional[str] = None):
         """
         Initialize the TTS engine.
 
@@ -41,7 +41,7 @@ class TTSEngine(ABC):
             ) from e
 
     @abstractmethod
-    def generate_audio(self, text: str) -> Tuple[str, int]:
+    def generate_audio(self, text: str) -> tuple[str, int]:
         """
         Generate audio from text and return the file path and sample rate.
 
@@ -70,7 +70,7 @@ class TTSEngine(ABC):
         pass
 
     @staticmethod
-    def list_available_devices() -> List[Dict[str, Any]]:
+    def list_available_devices() -> list[dict[str, Any]]:
         """
         Get a list of all available audio devices.
 

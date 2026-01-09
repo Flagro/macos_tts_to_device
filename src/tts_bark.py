@@ -3,7 +3,7 @@
 import logging
 import numpy as np
 import soundfile as sf
-from typing import Tuple, List, Optional
+from typing import Optional
 
 from src.tts_base import TTSEngine
 from settings import BARK_VOICES
@@ -16,7 +16,7 @@ class BarkTTSEngine(TTSEngine):
 
     def __init__(
         self,
-        output_devices: List[str],
+        output_devices: list[str],
         voice_preset: str = "v2/en_speaker_6",
         sample_rate: int = 24000,
         tmp_dir: Optional[str] = None,
@@ -62,7 +62,7 @@ class BarkTTSEngine(TTSEngine):
             logger.error(f"Failed to load Bark models: {e}", exc_info=True)
             raise RuntimeError(f"Failed to load Bark models: {e}") from e
 
-    def generate_audio(self, text: str) -> Tuple[str, int]:
+    def generate_audio(self, text: str) -> tuple[str, int]:
         """
         Generate audio using Bark AI.
 

@@ -2,7 +2,7 @@
 
 import logging
 import subprocess
-from typing import Tuple, Optional, List
+from typing import Optional
 
 import soundfile as sf
 
@@ -16,7 +16,7 @@ class SayTTSEngine(TTSEngine):
 
     def __init__(
         self,
-        output_devices: List[str],
+        output_devices: list[str],
         voice: Optional[str] = None,
         tmp_dir: Optional[str] = None,
         timeout: int = 30,
@@ -37,7 +37,7 @@ class SayTTSEngine(TTSEngine):
             f"Initialized SayTTSEngine with voice='{voice}', timeout={timeout}s, devices={output_devices}"
         )
 
-    def generate_audio(self, text: str) -> Tuple[str, int]:
+    def generate_audio(self, text: str) -> tuple[str, int]:
         """
         Generate audio using macOS 'say' command.
 
@@ -107,7 +107,7 @@ class SayTTSEngine(TTSEngine):
             print("Voice: Default")
 
     @staticmethod
-    def list_available_voices() -> List[Tuple[str, str, str]]:
+    def list_available_voices() -> list[tuple[str, str, str]]:
         """
         Get a list of available voices from the 'say' command.
 
