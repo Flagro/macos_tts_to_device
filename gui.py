@@ -38,6 +38,7 @@ class TTSApp:
         self.tts_engine: Optional[Union[SayTTSEngine, BarkTTSEngine]] = None
         self.is_processing: bool = False
         self.processing_lock: threading.Lock = threading.Lock()
+        self.cancel_event: threading.Event = threading.Event()
         self.current_engine_type: str = settings.DEFAULT_ENGINE
 
         # Available engines
@@ -68,6 +69,7 @@ class TTSApp:
         self.voice_entry: ttk.Entry
         self.text_input: scrolledtext.ScrolledText
         self.speak_button: ttk.Button
+        self.stop_button: ttk.Button
         self.status_var: tk.StringVar
 
         # Create UI
@@ -196,6 +198,15 @@ class TTSApp:
             width=20,
         )
         self.speak_button.pack(side=tk.LEFT, padx=5)
+
+        self.stop_button = ttk.Button(
+            button_frame,
+            text="⏹ Stop",
+            command=self._on_stop,
+            width=15,
+            state="disabled",
+        )
+        self.stop_button.pack(side=tk.LEFT, padx=5)
 
         ttk.Button(button_frame, text="Clear", command=self._on_clear, width=15).pack(
             side=tk.LEFT, padx=5
@@ -427,8 +438,10 @@ class TTSApp:
             if needs_reinit:
                 self._update_engine()
 
-            # Disable button in main thread
+            # Clear any previous cancel flag and update buttons
+            self.cancel_event.clear()
             self.speak_button.config(state="disabled")
+            self.stop_button.config(state="normal")
 
             # Speak in background thread
             threading.Thread(
@@ -440,13 +453,29 @@ class TTSApp:
                 self.is_processing = False
             raise
 
+    def _on_stop(self) -> None:
+        """Handle stop button click."""
+        with self.processing_lock:
+            if not self.is_processing:
+                return
+
+        # Signal cancellation
+        self.cancel_event.set()
+        self._set_status("Stopping...")
+        logger.info("Stop requested by user")
+
     def _speak_threaded(self, text: str) -> None:
         """Speak text in a background thread."""
         self.root.after(0, lambda: self._set_status("Generating speech..."))
 
         try:
-            self.tts_engine.process_text(text)  # type: ignore[union-attr]
-            self.root.after(0, lambda: self._set_status("Playback complete"))
+            self.tts_engine.process_text(text, self.cancel_event)  # type: ignore[union-attr]
+
+            # Check if cancelled
+            if self.cancel_event.is_set():
+                self.root.after(0, lambda: self._set_status("Stopped"))
+            else:
+                self.root.after(0, lambda: self._set_status("Playback complete"))
         except Exception as e:
             error_msg: str = f"Error: {str(e)}"
             self.root.after(0, lambda: self._set_status(error_msg))
@@ -455,6 +484,7 @@ class TTSApp:
             with self.processing_lock:
                 self.is_processing = False
             self.root.after(0, lambda: self.speak_button.config(state="normal"))
+            self.root.after(0, lambda: self.stop_button.config(state="disabled"))
 
     def _on_clear(self) -> None:
         """Clear the text input."""

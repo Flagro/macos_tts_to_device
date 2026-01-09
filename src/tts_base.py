@@ -150,7 +150,13 @@ class TTSEngine(ABC):
             print(f"Error listing audio devices: {e}")
             logger.error(f"Error in print_available_devices: {e}", exc_info=True)
 
-    def play_on_device(self, audio_path: str, sample_rate: int, device_name: str):
+    def play_on_device(
+        self,
+        audio_path: str,
+        sample_rate: int,
+        device_name: str,
+        cancel_event: Optional[threading.Event] = None,
+    ):
         """
         Play audio file on a specific device.
 
@@ -158,27 +164,49 @@ class TTSEngine(ABC):
             audio_path: Path to audio file
             sample_rate: Sample rate of the audio
             device_name: Name or ID of the output device
+            cancel_event: Optional threading.Event to signal cancellation
         """
         try:
+            # Check if cancelled before starting
+            if cancel_event and cancel_event.is_set():
+                logger.info(
+                    f"Playback cancelled before starting on device '{device_name}'"
+                )
+                return
+
             logger.debug(f"Reading audio file for device '{device_name}': {audio_path}")
             data, sr = sf.read(audio_path, dtype="float32", always_2d=True)
             logger.debug(
                 f"Playing audio on device '{device_name}': {data.shape[0]} samples at {sr} Hz"
             )
             sd.play(data, sr, device=device_name)
-            sd.wait()
+
+            # Wait with periodic cancellation checks
+            while sd.get_stream().active:
+                if cancel_event and cancel_event.is_set():
+                    sd.stop()
+                    logger.info(f"Playback cancelled on device '{device_name}'")
+                    return
+                sd.sleep(100)  # Check every 100ms
+
             logger.info(f"Finished playback on device '{device_name}'")
         except Exception as e:
             logger.error(f"Error playing on device '{device_name}': {e}", exc_info=True)
             print(f"Error playing on device '{device_name}': {e}")
 
-    def play_audio(self, audio_path: str, sample_rate: int):
+    def play_audio(
+        self,
+        audio_path: str,
+        sample_rate: int,
+        cancel_event: Optional[threading.Event] = None,
+    ):
         """
         Play audio file on all configured output devices simultaneously.
 
         Args:
             audio_path: Path to audio file
             sample_rate: Sample rate of the audio
+            cancel_event: Optional threading.Event to signal cancellation
         """
         logger.info(
             f"Starting playback on {len(self.output_devices)} device(s): {self.output_devices}"
@@ -187,7 +215,7 @@ class TTSEngine(ABC):
         for device in self.output_devices:
             thread = threading.Thread(
                 target=self.play_on_device,
-                args=(audio_path, sample_rate, device),
+                args=(audio_path, sample_rate, device, cancel_event),
                 name=f"Playback-{device}",
             )
             thread.start()
@@ -198,18 +226,30 @@ class TTSEngine(ABC):
             thread.join()
         logger.info("All devices finished playback")
 
-    def process_text(self, text: str):
+    def process_text(self, text: str, cancel_event: Optional[threading.Event] = None):
         """
         Process text input: generate audio and play it on all devices.
 
         Args:
             text: Text to convert to speech
+            cancel_event: Optional threading.Event to signal cancellation
         """
         audio_path = None
         logger.info(f"Processing text: '{text[:50]}{'...' if len(text) > 50 else ''}'")
         try:
+            # Check if cancelled before generating
+            if cancel_event and cancel_event.is_set():
+                logger.info("Text processing cancelled before audio generation")
+                return
+
             audio_path, sample_rate = self.generate_audio(text)
-            self.play_audio(audio_path, sample_rate)
+
+            # Check if cancelled after generation
+            if cancel_event and cancel_event.is_set():
+                logger.info("Text processing cancelled after audio generation")
+                return
+
+            self.play_audio(audio_path, sample_rate, cancel_event)
         finally:
             if audio_path and os.path.exists(audio_path):
                 try:
