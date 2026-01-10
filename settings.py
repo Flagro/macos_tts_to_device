@@ -29,8 +29,8 @@ TEXT_INPUT_FONT_SIZE = 11
 HELP_TEXT_FONT_SIZE = 9
 
 # Help Text
-VOICE_HELP_SAY = "(Optional) e.g., 'Alex', 'Samantha' - leave empty for default"
-VOICE_HELP_BARK = "(Optional) e.g., 'v2/en_speaker_6' - leave empty for default"
+VOICE_HELP_SAY = "Select a voice from the dropdown or use Default for system default"
+VOICE_HELP_BARK = "Select a Bark voice preset - try different speakers for varied tone"
 
 # Engine Metadata
 ENGINE_METADATA = {

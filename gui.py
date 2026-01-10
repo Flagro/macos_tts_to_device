@@ -66,7 +66,8 @@ class TTSApp:
         self.sample_rate_label: ttk.Label
         self.voice_var: tk.StringVar
         self.voice_help: ttk.Label
-        self.voice_entry: ttk.Entry
+        self.voice_combo: ttk.Combobox
+        self.available_voices: list[str] = []
         self.text_input: scrolledtext.ScrolledText
         self.speak_button: ttk.Button
         self.stop_button: ttk.Button
@@ -75,6 +76,7 @@ class TTSApp:
         # Create UI
         self._create_widgets()
         self._load_audio_devices()
+        self._load_voices_for_engine()  # Load voices for initial engine
         self._update_ui_for_engine()  # Hide/show elements based on initial engine
         self._initialize_default_engine()
 
@@ -154,8 +156,13 @@ class TTSApp:
         )
 
         self.voice_var = tk.StringVar(value=settings.DEFAULT_SAY_VOICE)
-        self.voice_entry = ttk.Entry(main_frame, textvariable=self.voice_var, width=40)
-        self.voice_entry.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
+        self.voice_combo = ttk.Combobox(
+            main_frame,
+            textvariable=self.voice_var,
+            width=37,
+            state="readonly",
+        )
+        self.voice_combo.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
 
         # Help text for voice
         self.voice_help = ttk.Label(
@@ -301,11 +308,57 @@ class TTSApp:
 
     def _on_engine_change(self) -> None:
         """Handle engine selection change."""
+        self._load_voices_for_engine()  # Load voices before updating UI
         self._update_ui_for_engine()
 
         new_engine: str = self.engine_var.get()
         if new_engine != self.current_engine_type:
             self._update_engine()
+
+    def _load_voices_for_engine(self) -> None:
+        """Load available voices for the currently selected engine."""
+        engine_type: str = self.engine_var.get()
+
+        try:
+            if engine_type == "bark":
+                # Load Bark voices
+                from settings import BARK_VOICES
+
+                self.available_voices = ["Default"] + list(BARK_VOICES.keys())
+
+                # Set default if current value is not valid for Bark
+                current_voice = self.voice_var.get()
+                if (
+                    not current_voice
+                    or current_voice == "Default"
+                    or not current_voice.startswith("v2/")
+                ):
+                    self.voice_var.set(settings.DEFAULT_BARK_SPEAKER)
+            else:  # say
+                # Load Say voices
+                try:
+                    voices = SayTTSEngine.list_available_voices()
+                    self.available_voices = ["Default"] + [voice[0] for voice in voices]
+
+                    # Set default if current value is not valid for Say
+                    current_voice = self.voice_var.get()
+                    if not current_voice or current_voice.startswith("v2/"):
+                        self.voice_var.set("Default")
+                except Exception as e:
+                    logger.error(f"Failed to load Say voices: {e}")
+                    self.available_voices = ["Default", "Alex", "Samantha", "Victoria"]
+                    self.voice_var.set("Default")
+
+            # Update combobox values
+            self.voice_combo["values"] = self.available_voices
+
+        except Exception as e:
+            logger.error(
+                f"Failed to load voices for engine '{engine_type}': {e}", exc_info=True
+            )
+            self.available_voices = ["Default"]
+            self.voice_combo["values"] = self.available_voices
+            self.voice_var.set("Default")
 
     def _update_ui_for_engine(self) -> None:
         """Update UI elements based on selected engine."""
@@ -314,20 +367,12 @@ class TTSApp:
         if engine_type == "bark":
             # Update voice help for Bark
             self.voice_help.config(text=settings.VOICE_HELP_BARK)
-            if not self.voice_var.get() or self.voice_var.get() in [
-                "",
-                "Alex",
-                "Samantha",
-            ]:
-                self.voice_var.set(settings.DEFAULT_BARK_SPEAKER)
             # Show sample rate for Bark
             self.sample_rate_label.grid()
             self.sample_rate_combo.grid()
         else:
             # Update voice help for Say
             self.voice_help.config(text=settings.VOICE_HELP_SAY)
-            if self.voice_var.get().startswith("v2/"):
-                self.voice_var.set(settings.DEFAULT_SAY_VOICE)
             # Hide sample rate for Say (not applicable)
             self.sample_rate_label.grid_remove()
             self.sample_rate_combo.grid_remove()
@@ -355,15 +400,23 @@ class TTSApp:
             engine_class: type[TTSEngine] = self.engines[engine_type]["class"]
 
             if engine_type == "say":
+                # Handle "Default" option
+                voice_to_use = None if voice == "Default" or not voice else voice
                 self.tts_engine = engine_class(
                     output_devices=selected_devices,
-                    voice=voice if voice else None,
+                    voice=voice_to_use,
                     timeout=settings.SAY_ENGINE_TIMEOUT,
                 )
             else:  # bark
+                # Handle "Default" option
+                voice_to_use = (
+                    settings.DEFAULT_BARK_SPEAKER
+                    if voice == "Default" or not voice
+                    else voice
+                )
                 self.tts_engine = engine_class(
                     output_devices=selected_devices,
-                    voice_preset=voice if voice else settings.DEFAULT_BARK_SPEAKER,
+                    voice_preset=voice_to_use,
                     sample_rate=sample_rate,
                 )
 
@@ -424,13 +477,19 @@ class TTSApp:
                 needs_reinit = True
             elif isinstance(self.tts_engine, SayTTSEngine):
                 # Check if Say voice changed
-                if self.tts_engine.voice != (voice if voice else None):
+                voice_to_check = None if voice == "Default" or not voice else voice
+                if self.tts_engine.voice != voice_to_check:
                     needs_reinit = True
             elif isinstance(self.tts_engine, BarkTTSEngine):
                 # Check if Bark settings changed
                 current_sample_rate = int(self.sample_rate_var.get())
+                voice_to_check = (
+                    settings.DEFAULT_BARK_SPEAKER
+                    if voice == "Default" or not voice
+                    else voice
+                )
                 if (
-                    self.tts_engine.voice_preset != voice
+                    self.tts_engine.voice_preset != voice_to_check
                     or self.tts_engine.sample_rate != current_sample_rate
                 ):
                     needs_reinit = True
