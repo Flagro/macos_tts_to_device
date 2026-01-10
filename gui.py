@@ -72,6 +72,7 @@ class TTSApp:
         self.speak_button: ttk.Button
         self.stop_button: ttk.Button
         self.status_var: tk.StringVar
+        self.progress_bar: ttk.Progressbar
 
         # Create UI
         self._create_widgets()
@@ -219,6 +220,17 @@ class TTSApp:
             side=tk.LEFT, padx=5
         )
 
+        # ===== Progress Bar =====
+        self.progress_bar = ttk.Progressbar(
+            main_frame,
+            mode="indeterminate",
+            length=300,
+        )
+        self.progress_bar.grid(
+            row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0), padx=10
+        )
+        self.progress_bar.grid_remove()  # Hidden by default
+
         # ===== Status Bar =====
         self.status_var = tk.StringVar(value="Ready")
         status_bar: ttk.Label = ttk.Label(
@@ -228,7 +240,7 @@ class TTSApp:
             anchor=tk.W,
             padding=(5, 2),
         )
-        status_bar.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        status_bar.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
 
     def _initialize_default_engine(self) -> None:
         """Initialize the default TTS engine."""
@@ -525,7 +537,18 @@ class TTSApp:
 
     def _speak_threaded(self, text: str) -> None:
         """Speak text in a background thread."""
-        self.root.after(0, lambda: self._set_status("Generating speech..."))
+        # Show progress bar if using Bark
+        is_bark = isinstance(self.tts_engine, BarkTTSEngine)
+        if is_bark:
+            self.root.after(0, lambda: self._show_progress())
+            self.root.after(
+                0,
+                lambda: self._set_status(
+                    "Generating speech with Bark AI (this may take 5-15 seconds)..."
+                ),
+            )
+        else:
+            self.root.after(0, lambda: self._set_status("Generating speech..."))
 
         try:
             self.tts_engine.process_text(text, self.cancel_event)  # type: ignore[union-attr]
@@ -540,6 +563,10 @@ class TTSApp:
             self.root.after(0, lambda: self._set_status(error_msg))
             logger.error(f"Error during TTS processing: {e}", exc_info=True)
         finally:
+            # Hide progress bar
+            if is_bark:
+                self.root.after(0, lambda: self._hide_progress())
+
             with self.processing_lock:
                 self.is_processing = False
             self.root.after(0, lambda: self.speak_button.config(state="normal"))
@@ -549,6 +576,16 @@ class TTSApp:
         """Clear the text input."""
         self.text_input.delete("1.0", tk.END)
         self.text_input.focus()
+
+    def _show_progress(self) -> None:
+        """Show and start the progress bar animation."""
+        self.progress_bar.grid()
+        self.progress_bar.start(10)  # Update every 10ms
+
+    def _hide_progress(self) -> None:
+        """Stop and hide the progress bar."""
+        self.progress_bar.stop()
+        self.progress_bar.grid_remove()
 
     def _set_status(self, message: str) -> None:
         """Update the status bar."""
