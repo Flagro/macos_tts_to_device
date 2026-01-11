@@ -303,13 +303,33 @@ macos-tts-cli    # Launch CLI with options
 macos-tts        # Shortcut for CLI
 ```
 
+## Testing
+
+This project includes a comprehensive test suite. To run the tests:
+
+```bash
+# Install test dependencies
+uv pip install .[dev]
+
+# Run all tests
+pytest
+
+# Run tests with coverage report
+pytest --cov=src --cov=cli --cov=gui --cov=settings --cov-report=html
+
+# Or use the convenience script
+./run_tests.sh
+```
+
+See `tests/README.md` for more details on the test suite.
+
 ## License
 
 [Specify your license here]
 
 ## Contributing
 
-Contributions welcome! Feel free to open issues or submit pull requests.
+Contributions welcome! Feel free to open issues or submit pull requests. Please ensure all tests pass before submitting a PR.
 
 ## Acknowledgments
 
