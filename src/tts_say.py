@@ -20,6 +20,7 @@ class SayTTSEngine(TTSEngine):
         voice: Optional[str] = None,
         tmp_dir: Optional[str] = None,
         timeout: int = 30,
+        playback_speed: float = 1.0,
     ):
         """
         Initialize the Say TTS engine.
@@ -29,8 +30,9 @@ class SayTTSEngine(TTSEngine):
             voice: macOS voice name (e.g., "Alex", "Samantha"), None for default
             tmp_dir: Directory for temporary audio files
             timeout: Timeout in seconds for the 'say' command (default: 30)
+            playback_speed: Playback speed multiplier (0.5-2.0, default: 1.0)
         """
-        super().__init__(output_devices, tmp_dir)
+        super().__init__(output_devices, tmp_dir, playback_speed)
         self.voice = voice
         self.timeout = timeout
         logger.info(

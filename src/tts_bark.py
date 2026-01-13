@@ -20,6 +20,7 @@ class BarkTTSEngine(TTSEngine):
         voice_preset: str = "v2/en_speaker_6",
         sample_rate: int = 24000,
         tmp_dir: Optional[str] = None,
+        playback_speed: float = 1.0,
     ):
         """
         Initialize the Bark TTS engine.
@@ -29,8 +30,9 @@ class BarkTTSEngine(TTSEngine):
             voice_preset: Bark voice preset (e.g., "v2/en_speaker_6")
             sample_rate: Sample rate for audio output (default: 24000)
             tmp_dir: Directory for temporary audio files
+            playback_speed: Playback speed multiplier (0.5-2.0, default: 1.0)
         """
-        super().__init__(output_devices, tmp_dir)
+        super().__init__(output_devices, tmp_dir, playback_speed)
 
         # Validate voice preset
         if voice_preset not in BARK_VOICES:

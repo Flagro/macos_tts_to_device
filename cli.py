@@ -62,6 +62,13 @@ ENGINES = {
     help="[Bark engine] Bark output sample rate in Hz.",
 )
 @click.option(
+    "--playback-speed",
+    type=float,
+    default=settings.DEFAULT_PLAYBACK_SPEED,
+    show_default=True,
+    help="Playback speed multiplier (0.5 = half speed, 2.0 = double speed).",
+)
+@click.option(
     "--log-level",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"], case_sensitive=False),
     default=settings.LOG_LEVEL,
@@ -93,6 +100,7 @@ def main(
     timeout,
     speaker,
     sample_rate,
+    playback_speed,
     log_level,
     verbose,
     text,
@@ -122,6 +130,9 @@ def main(
 
       # Multiple devices (simultaneous playback)
       python main.py --engine say --devices "BlackHole 16ch" --devices "External Headphones"
+
+      # Adjust playback speed (faster or slower)
+      python main.py --engine say --devices "BlackHole 16ch" --playback-speed 1.5
 
       # Enable verbose logging for troubleshooting
       python main.py --engine say --devices "BlackHole 16ch" --verbose
@@ -161,13 +172,31 @@ def main(
     # Convert devices tuple to list
     devices = list(devices)
 
+    # Validate playback speed
+    if playback_speed < settings.MIN_PLAYBACK_SPEED or playback_speed > settings.MAX_PLAYBACK_SPEED:
+        click.echo(
+            f"Warning: Playback speed {playback_speed} is outside recommended range "
+            f"({settings.MIN_PLAYBACK_SPEED}-{settings.MAX_PLAYBACK_SPEED}). "
+            "Clamping to valid range.",
+            err=True,
+        )
+        playback_speed = max(
+            settings.MIN_PLAYBACK_SPEED, min(settings.MAX_PLAYBACK_SPEED, playback_speed)
+        )
+
     # Engine-specific initialization parameters
     engine_params = {
-        "say": {"output_devices": devices, "voice": voice, "timeout": timeout},
+        "say": {
+            "output_devices": devices,
+            "voice": voice,
+            "timeout": timeout,
+            "playback_speed": playback_speed,
+        },
         "bark": {
             "output_devices": devices,
             "voice_preset": speaker,
             "sample_rate": sample_rate,
+            "playback_speed": playback_speed,
         },
     }
 

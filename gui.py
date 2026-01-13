@@ -64,6 +64,10 @@ class TTSApp:
         self.sample_rate_var: tk.StringVar
         self.sample_rate_combo: ttk.Combobox
         self.sample_rate_label: ttk.Label
+        self.playback_speed_var: tk.DoubleVar
+        self.playback_speed_scale: ttk.Scale
+        self.playback_speed_label: ttk.Label
+        self.playback_speed_value_label: ttk.Label
         self.voice_var: tk.StringVar
         self.voice_help: ttk.Label
         self.voice_combo: ttk.Combobox
@@ -92,7 +96,7 @@ class TTSApp:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(5, weight=1)  # Updated from 4 to 5 for sample rate row
+        main_frame.rowconfigure(6, weight=1)  # Updated from 5 to 6 for playback speed row
 
         # ===== Engine Selection =====
         ttk.Label(main_frame, text="Engine:").grid(row=0, column=0, sticky=tk.W, pady=5)
@@ -151,9 +155,32 @@ class TTSApp:
             row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=5
         )
 
+        # ===== Playback Speed Control =====
+        self.playback_speed_label = ttk.Label(main_frame, text="Playback Speed:")
+        self.playback_speed_label.grid(row=3, column=0, sticky=tk.W, pady=5)
+
+        playback_speed_frame = ttk.Frame(main_frame)
+        playback_speed_frame.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
+
+        self.playback_speed_var = tk.DoubleVar(value=settings.DEFAULT_PLAYBACK_SPEED)
+        self.playback_speed_scale = ttk.Scale(
+            playback_speed_frame,
+            from_=settings.MIN_PLAYBACK_SPEED,
+            to=settings.MAX_PLAYBACK_SPEED,
+            variable=self.playback_speed_var,
+            orient=tk.HORIZONTAL,
+            command=self._on_playback_speed_change,
+        )
+        self.playback_speed_scale.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        self.playback_speed_value_label = ttk.Label(
+            playback_speed_frame, text="1.0x", width=6
+        )
+        self.playback_speed_value_label.pack(side=tk.LEFT, padx=(5, 0))
+
         # ===== Voice Selection (Engine-specific) =====
         ttk.Label(main_frame, text="Voice/Speaker:").grid(
-            row=3, column=0, sticky=tk.W, pady=5
+            row=4, column=0, sticky=tk.W, pady=5
         )
 
         self.voice_var = tk.StringVar(value=settings.DEFAULT_SAY_VOICE)
@@ -163,7 +190,7 @@ class TTSApp:
             width=37,
             state="readonly",
         )
-        self.voice_combo.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
+        self.voice_combo.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
 
         # Help text for voice
         self.voice_help = ttk.Label(
@@ -172,11 +199,11 @@ class TTSApp:
             font=("", settings.HELP_TEXT_FONT_SIZE),
             foreground="gray",
         )
-        self.voice_help.grid(row=4, column=1, sticky=tk.W, padx=5)
+        self.voice_help.grid(row=5, column=1, sticky=tk.W, padx=5)
 
         # ===== Text Input =====
         ttk.Label(main_frame, text="Text to Speak:").grid(
-            row=5, column=0, sticky=(tk.W, tk.N), pady=5
+            row=6, column=0, sticky=(tk.W, tk.N), pady=5
         )
 
         self.text_input = scrolledtext.ScrolledText(
@@ -187,7 +214,7 @@ class TTSApp:
             font=("", settings.TEXT_INPUT_FONT_SIZE),
         )
         self.text_input.grid(
-            row=5, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5, padx=5
+            row=6, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5, padx=5
         )
         self.text_input.focus()
 
@@ -197,7 +224,7 @@ class TTSApp:
 
         # ===== Buttons =====
         button_frame: ttk.Frame = ttk.Frame(main_frame)
-        button_frame.grid(row=6, column=0, columnspan=2, pady=10)
+        button_frame.grid(row=7, column=0, columnspan=2, pady=10)
 
         self.speak_button = ttk.Button(
             button_frame,
@@ -227,7 +254,7 @@ class TTSApp:
             length=300,
         )
         self.progress_bar.grid(
-            row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0), padx=10
+            row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0), padx=10
         )
         self.progress_bar.grid_remove()  # Hidden by default
 
@@ -240,7 +267,7 @@ class TTSApp:
             anchor=tk.W,
             padding=(5, 2),
         )
-        status_bar.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        status_bar.grid(row=9, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
 
     def _initialize_default_engine(self) -> None:
         """Initialize the default TTS engine."""
@@ -395,12 +422,18 @@ class TTSApp:
             device_name for device_name, var in self.device_vars.items() if var.get()
         ]
 
+    def _on_playback_speed_change(self, value: str) -> None:
+        """Handle playback speed slider change."""
+        speed = float(value)
+        self.playback_speed_value_label.config(text=f"{speed:.1f}x")
+
     def _update_engine(self) -> None:
         """Recreate the TTS engine with current settings."""
         engine_type: str = self.engine_var.get()
         selected_devices: list[str] = self._get_selected_devices()
         voice: str = self.voice_var.get().strip()
         sample_rate: int = int(self.sample_rate_var.get())
+        playback_speed: float = self.playback_speed_var.get()
 
         if not selected_devices:
             self._set_status("Error: Please select at least one output device")
@@ -418,6 +451,7 @@ class TTSApp:
                     output_devices=selected_devices,
                     voice=voice_to_use,
                     timeout=settings.SAY_ENGINE_TIMEOUT,
+                    playback_speed=playback_speed,
                 )
             else:  # bark
                 # Handle "Default" option
@@ -430,6 +464,7 @@ class TTSApp:
                     output_devices=selected_devices,
                     voice_preset=voice_to_use,
                     sample_rate=sample_rate,
+                    playback_speed=playback_speed,
                 )
 
             self.current_engine_type = engine_type
@@ -437,7 +472,8 @@ class TTSApp:
             device_count: str = (
                 f"{len(selected_devices)} device{'s' if len(selected_devices) > 1 else ''}"
             )
-            self._set_status(f"Ready - Using {engine_name} ({device_count})")
+            speed_info: str = f" @ {playback_speed:.1f}x" if playback_speed != 1.0 else ""
+            self._set_status(f"Ready - Using {engine_name} ({device_count}){speed_info}")
 
         except ImportError as e:
             if "bark" in str(e).lower():
@@ -505,6 +541,11 @@ class TTSApp:
                     or self.tts_engine.sample_rate != current_sample_rate
                 ):
                     needs_reinit = True
+
+            # Check if playback speed changed
+            current_speed = self.playback_speed_var.get()
+            if abs(self.tts_engine.playback_speed - current_speed) > 0.01:
+                needs_reinit = True
 
             if needs_reinit:
                 self._update_engine()

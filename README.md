@@ -12,6 +12,7 @@ A Python utility for routing text-to-speech (TTS) audio to specific output devic
 - 🎤 **Two TTS Engines**:
   - **macOS `say`**: Fast, built-in macOS TTS with multiple voice options
   - **Bark AI**: Natural-sounding AI-generated speech with realistic prosody
+- ⚡ **Playback Speed Control**: Adjust playback speed from 0.5x (half speed) to 2.0x (double speed)
 - 🔄 **Interactive Modes**: CLI for typing or GUI for visual control
 - 🧹 **Auto-cleanup**: Temporary audio files are automatically removed
 - ⚡ **Real-time**: Minimal latency from text input to audio output
@@ -97,6 +98,7 @@ python gui.py
 - 🔘 Radio buttons to switch between Say and Bark engines
 - ✏️ Text input field for device name (e.g., "BlackHole 16ch")
 - 🎤 Optional voice/speaker selection
+- ⚡ Playback speed slider (0.5x - 2.0x)
 - 📝 Multi-line text area for speech input
 - ⌨️ Keyboard shortcut: `Cmd+Enter` or `Ctrl+Enter` to speak
 - 📊 Status bar showing current operation
@@ -154,6 +156,18 @@ python cli.py --engine bark --devices "External Headphones" --speaker "v2/en_spe
 ```
 
 Try different speaker presets: `v2/en_speaker_1` through `v2/en_speaker_9`
+
+**Playback Speed Adjustment**:
+
+```bash
+# Play at 1.5x speed (50% faster)
+python cli.py --engine say --devices "BlackHole 16ch" --playback-speed 1.5
+
+# Play at 0.75x speed (25% slower)
+python cli.py --engine bark --devices "External Headphones" --playback-speed 0.75
+```
+
+The playback speed feature adjusts the audio playback rate from 0.5x (half speed) to 2.0x (double speed). This is applied during playback, not during audio generation, so it doesn't affect voice generation quality.
 
 ### Finding Your Output Device Name
 
@@ -278,6 +292,7 @@ Ensure `OUTPUT_DEVICE` matches a device name (substring matching is supported).
 
 - `sounddevice`: Python bindings for PortAudio (audio I/O)
 - `soundfile`: Audio file reading/writing
+- `scipy`: Scientific computing library (for playback speed adjustment)
 - `click`: CLI argument parsing (CLI only)
 - `tkinter`: GUI toolkit (included with Python)
 - `bark` (optional): Suno's Bark AI TTS model
