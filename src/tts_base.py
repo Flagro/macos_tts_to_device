@@ -7,8 +7,10 @@ import threading
 from abc import ABC, abstractmethod
 from typing import Optional, Any
 
+import numpy as np
 import sounddevice as sd
 import soundfile as sf
+from scipy import signal
 
 logger = logging.getLogger(__name__)
 
@@ -16,15 +18,22 @@ logger = logging.getLogger(__name__)
 class TTSEngine(ABC):
     """Base class for TTS engines with multi-device playback support."""
 
-    def __init__(self, output_devices: list[str], tmp_dir: Optional[str] = None):
+    def __init__(
+        self,
+        output_devices: list[str],
+        tmp_dir: Optional[str] = None,
+        playback_speed: float = 1.0,
+    ):
         """
         Initialize the TTS engine.
 
         Args:
             output_devices: List of output device names or IDs
             tmp_dir: Directory for temporary audio files (default: tts_tmp/)
+            playback_speed: Playback speed multiplier (0.5-2.0, default: 1.0)
         """
         self.output_devices = output_devices
+        self.playback_speed = max(0.5, min(2.0, playback_speed))  # Clamp to range
 
         if tmp_dir is None:
             script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -34,6 +43,7 @@ class TTSEngine(ABC):
         try:
             os.makedirs(self.tmp_dir, exist_ok=True)
             logger.info(f"Temporary directory: {self.tmp_dir}")
+            logger.info(f"Playback speed: {self.playback_speed}x")
         except OSError as e:
             logger.error(f"Failed to create temporary directory {self.tmp_dir}: {e}")
             raise RuntimeError(
@@ -176,6 +186,14 @@ class TTSEngine(ABC):
 
             logger.debug(f"Reading audio file for device '{device_name}': {audio_path}")
             data, sr = sf.read(audio_path, dtype="float32", always_2d=True)
+
+            # Apply playback speed adjustment if needed
+            if self.playback_speed != 1.0:
+                data = self._apply_speed_adjustment(data, self.playback_speed)
+                logger.debug(
+                    f"Applied {self.playback_speed}x speed adjustment on device '{device_name}'"
+                )
+
             logger.debug(
                 f"Playing audio on device '{device_name}': {data.shape[0]} samples at {sr} Hz"
             )
@@ -258,6 +276,41 @@ class TTSEngine(ABC):
                 except OSError as e:
                     logger.warning(f"Failed to remove temporary file {audio_path}: {e}")
 
+    def _apply_speed_adjustment(
+        self, audio_data: np.ndarray, speed: float
+    ) -> np.ndarray:
+        """
+        Apply playback speed adjustment to audio data using resampling.
+
+        This method speeds up or slows down audio playback by resampling.
+        Note: This changes both tempo and pitch (like a record player).
+
+        Args:
+            audio_data: Audio data as numpy array (samples x channels)
+            speed: Speed multiplier (0.5 = half speed, 2.0 = double speed)
+
+        Returns:
+            Resampled audio data
+        """
+        if speed == 1.0:
+            return audio_data
+
+        # Calculate new number of samples
+        original_length = audio_data.shape[0]
+        new_length = int(original_length / speed)
+
+        # Resample each channel
+        if audio_data.ndim == 1:
+            # Mono audio
+            resampled = signal.resample(audio_data, new_length)
+        else:
+            # Multi-channel audio - resample each channel separately
+            resampled = np.zeros((new_length, audio_data.shape[1]), dtype=np.float32)
+            for ch in range(audio_data.shape[1]):
+                resampled[:, ch] = signal.resample(audio_data[:, ch], new_length)
+
+        return resampled.astype(np.float32)
+
     def generate_temp_path(self, extension: str = "wav") -> str:
         """
         Generate a unique temporary file path.
@@ -277,6 +330,8 @@ class TTSEngine(ABC):
         print(f"\n{self.get_engine_name()} → Multiple Devices")
         print(f"Output devices: {self.output_devices}")
         print(f"Temp files: {self.tmp_dir}")
+        if self.playback_speed != 1.0:
+            print(f"Playback speed: {self.playback_speed}x")
         self._print_engine_specific_info()
         print("Type a line and press Enter (Ctrl+C to quit)\n")
 

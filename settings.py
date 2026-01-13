@@ -15,6 +15,12 @@ DEFAULT_SAMPLE_RATE = "24000"
 AVAILABLE_SAMPLE_RATES = ["16000", "22050", "24000", "44100", "48000"]
 PREFERRED_DEFAULT_DEVICE = "BlackHole 16ch"
 
+# Playback Speed Configuration
+DEFAULT_PLAYBACK_SPEED = 1.0
+MIN_PLAYBACK_SPEED = 0.5
+MAX_PLAYBACK_SPEED = 2.0
+PLAYBACK_SPEED_STEP = 0.1
+
 # Voice/Speaker Defaults
 DEFAULT_BARK_SPEAKER = "v2/en_speaker_6"
 DEFAULT_SAY_VOICE = ""  # Empty string means system default
