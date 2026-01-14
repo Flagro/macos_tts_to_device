@@ -96,7 +96,9 @@ class TTSApp:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(6, weight=1)  # Updated from 5 to 6 for playback speed row
+        main_frame.rowconfigure(
+            6, weight=1
+        )  # Updated from 5 to 6 for playback speed row
 
         # ===== Engine Selection =====
         ttk.Label(main_frame, text="Engine:").grid(row=0, column=0, sticky=tk.W, pady=5)
@@ -286,7 +288,6 @@ class TTSApp:
             self.available_devices = [device["name"] for device in devices]
 
             if self.available_devices:
-
                 # Create a checkbox for each device
                 for device_name in self.available_devices:
                     var = tk.BooleanVar(value=False)
@@ -472,8 +473,12 @@ class TTSApp:
             device_count: str = (
                 f"{len(selected_devices)} device{'s' if len(selected_devices) > 1 else ''}"
             )
-            speed_info: str = f" @ {playback_speed:.1f}x" if playback_speed != 1.0 else ""
-            self._set_status(f"Ready - Using {engine_name} ({device_count}){speed_info}")
+            speed_info: str = (
+                f" @ {playback_speed:.1f}x" if playback_speed != 1.0 else ""
+            )
+            self._set_status(
+                f"Ready - Using {engine_name} ({device_count}){speed_info}"
+            )
 
         except ImportError as e:
             if "bark" in str(e).lower():
@@ -543,9 +548,10 @@ class TTSApp:
                     needs_reinit = True
 
             # Check if playback speed changed
-            current_speed = self.playback_speed_var.get()
-            if abs(self.tts_engine.playback_speed - current_speed) > 0.01:
-                needs_reinit = True
+            if self.tts_engine:
+                current_speed = self.playback_speed_var.get()
+                if abs(self.tts_engine.playback_speed - current_speed) > 0.01:
+                    needs_reinit = True
 
             if needs_reinit:
                 self._update_engine()
@@ -592,7 +598,13 @@ class TTSApp:
             self.root.after(0, lambda: self._set_status("Generating speech..."))
 
         try:
-            self.tts_engine.process_text(text, self.cancel_event)  # type: ignore[union-attr]
+            if self.tts_engine is None:
+                self.root.after(
+                    0, lambda: self._set_status("Error: Engine not initialized")
+                )
+                return
+
+            self.tts_engine.process_text(text, self.cancel_event)
 
             # Check if cancelled
             if self.cancel_event.is_set():
