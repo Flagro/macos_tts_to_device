@@ -302,7 +302,7 @@ class TTSApp:
                 # Try to select preferred device by default if available
                 if settings.PREFERRED_DEFAULT_DEVICE in self.available_devices:
                     self.device_vars[settings.PREFERRED_DEFAULT_DEVICE].set(True)
-                elif self.available_devices:
+                else:
                     # Select first device by default
                     self.device_vars[self.available_devices[0]].set(True)
             else:
@@ -446,8 +446,8 @@ class TTSApp:
             engine_class: type[TTSEngine] = self.engines[engine_type]["class"]
 
             if engine_type == "say":
-                # Handle "Default" option
-                voice_to_use = None if voice == "Default" or not voice else voice
+                # Handle "Default" option (use system default voice)
+                voice_to_use = None if voice == "Default" else voice
                 self.tts_engine = engine_class(
                     output_devices=selected_devices,
                     voice=voice_to_use,
@@ -455,11 +455,9 @@ class TTSApp:
                     playback_speed=playback_speed,
                 )
             else:  # bark
-                # Handle "Default" option
+                # Handle "Default" option (use default Bark speaker)
                 voice_to_use = (
-                    settings.DEFAULT_BARK_SPEAKER
-                    if voice == "Default" or not voice
-                    else voice
+                    settings.DEFAULT_BARK_SPEAKER if voice == "Default" else voice
                 )
                 self.tts_engine = engine_class(
                     output_devices=selected_devices,
@@ -481,15 +479,16 @@ class TTSApp:
             )
 
         except ImportError as e:
-            if "bark" in str(e).lower():
+            if "bark" in str(e).lower() and engine_type != "say":
                 self._set_status(
                     "Error: Bark not installed. Install with: uv pip install .[bark]"
                 )
-                # Fall back to say
+                # Fall back to say (only if not already using say)
                 self.engine_var.set("say")
                 self._update_engine()
             else:
                 self._set_status(f"Error: {e}")
+                logger.error(f"Failed to import engine: {e}", exc_info=True)
         except Exception as e:
             self._set_status(f"Error initializing engine: {e}")
 
@@ -530,16 +529,14 @@ class TTSApp:
                 needs_reinit = True
             elif isinstance(self.tts_engine, SayTTSEngine):
                 # Check if Say voice changed
-                voice_to_check = None if voice == "Default" or not voice else voice
+                voice_to_check = None if voice == "Default" else voice
                 if self.tts_engine.voice != voice_to_check:
                     needs_reinit = True
             elif isinstance(self.tts_engine, BarkTTSEngine):
                 # Check if Bark settings changed
                 current_sample_rate = int(self.sample_rate_var.get())
                 voice_to_check = (
-                    settings.DEFAULT_BARK_SPEAKER
-                    if voice == "Default" or not voice
-                    else voice
+                    settings.DEFAULT_BARK_SPEAKER if voice == "Default" else voice
                 )
                 if (
                     self.tts_engine.voice_preset != voice_to_check
