@@ -24,6 +24,9 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# Constants
+DEFAULT_VOICE_OPTION = "Default"
+
 
 class TTSApp:
     """Minimalistic TTS GUI Application."""
@@ -364,13 +367,15 @@ class TTSApp:
                 # Load Bark voices
                 from settings import BARK_VOICES
 
-                self.available_voices = ["Default"] + list(BARK_VOICES.keys())
+                self.available_voices = [DEFAULT_VOICE_OPTION] + list(
+                    BARK_VOICES.keys()
+                )
 
                 # Set default if current value is not valid for Bark
                 current_voice = self.voice_var.get()
                 if (
                     not current_voice
-                    or current_voice == "Default"
+                    or current_voice == DEFAULT_VOICE_OPTION
                     or not current_voice.startswith("v2/")
                 ):
                     self.voice_var.set(settings.DEFAULT_BARK_SPEAKER)
@@ -378,16 +383,23 @@ class TTSApp:
                 # Load Say voices
                 try:
                     voices = SayTTSEngine.list_available_voices()
-                    self.available_voices = ["Default"] + [voice[0] for voice in voices]
+                    self.available_voices = [DEFAULT_VOICE_OPTION] + [
+                        voice[0] for voice in voices
+                    ]
 
                     # Set default if current value is not valid for Say
                     current_voice = self.voice_var.get()
                     if not current_voice or current_voice.startswith("v2/"):
-                        self.voice_var.set("Default")
+                        self.voice_var.set(DEFAULT_VOICE_OPTION)
                 except Exception as e:
                     logger.error(f"Failed to load Say voices: {e}")
-                    self.available_voices = ["Default", "Alex", "Samantha", "Victoria"]
-                    self.voice_var.set("Default")
+                    self.available_voices = [
+                        DEFAULT_VOICE_OPTION,
+                        "Alex",
+                        "Samantha",
+                        "Victoria",
+                    ]
+                    self.voice_var.set(DEFAULT_VOICE_OPTION)
 
             # Update combobox values
             self.voice_combo["values"] = self.available_voices
@@ -396,9 +408,9 @@ class TTSApp:
             logger.error(
                 f"Failed to load voices for engine '{engine_type}': {e}", exc_info=True
             )
-            self.available_voices = ["Default"]
+            self.available_voices = [DEFAULT_VOICE_OPTION]
             self.voice_combo["values"] = self.available_voices
-            self.voice_var.set("Default")
+            self.voice_var.set(DEFAULT_VOICE_OPTION)
 
     def _update_ui_for_engine(self) -> None:
         """Update UI elements based on selected engine."""
@@ -447,7 +459,7 @@ class TTSApp:
 
             if engine_type == "say":
                 # Handle "Default" option (use system default voice)
-                voice_to_use = None if voice == "Default" else voice
+                voice_to_use = None if voice == DEFAULT_VOICE_OPTION else voice
                 self.tts_engine = engine_class(
                     output_devices=selected_devices,
                     voice=voice_to_use,
@@ -457,7 +469,9 @@ class TTSApp:
             else:  # bark
                 # Handle "Default" option (use default Bark speaker)
                 voice_to_use = (
-                    settings.DEFAULT_BARK_SPEAKER if voice == "Default" else voice
+                    settings.DEFAULT_BARK_SPEAKER
+                    if voice == DEFAULT_VOICE_OPTION
+                    else voice
                 )
                 self.tts_engine = engine_class(
                     output_devices=selected_devices,
@@ -491,6 +505,7 @@ class TTSApp:
                 logger.error(f"Failed to import engine: {e}", exc_info=True)
         except Exception as e:
             self._set_status(f"Error initializing engine: {e}")
+            logger.error(f"Failed to initialize engine: {e}", exc_info=True)
 
     def _on_speak(self) -> None:
         """Handle speak button click."""
@@ -529,14 +544,16 @@ class TTSApp:
                 needs_reinit = True
             elif isinstance(self.tts_engine, SayTTSEngine):
                 # Check if Say voice changed
-                voice_to_check = None if voice == "Default" else voice
+                voice_to_check = None if voice == DEFAULT_VOICE_OPTION else voice
                 if self.tts_engine.voice != voice_to_check:
                     needs_reinit = True
             elif isinstance(self.tts_engine, BarkTTSEngine):
                 # Check if Bark settings changed
                 current_sample_rate = int(self.sample_rate_var.get())
                 voice_to_check = (
-                    settings.DEFAULT_BARK_SPEAKER if voice == "Default" else voice
+                    settings.DEFAULT_BARK_SPEAKER
+                    if voice == DEFAULT_VOICE_OPTION
+                    else voice
                 )
                 if (
                     self.tts_engine.voice_preset != voice_to_check
@@ -564,6 +581,7 @@ class TTSApp:
             ).start()
         except Exception as e:
             # If any error occurs before thread starts, reset processing flag
+            logger.error(f"Error in _on_speak before thread start: {e}", exc_info=True)
             with self.processing_lock:
                 self.is_processing = False
             raise
@@ -609,7 +627,7 @@ class TTSApp:
             else:
                 self.root.after(0, lambda: self._set_status("Playback complete"))
         except Exception as e:
-            error_msg: str = f"Error: {str(e)}"
+            error_msg: str = f"Error: {e}"
             self.root.after(0, lambda: self._set_status(error_msg))
             logger.error(f"Error during TTS processing: {e}", exc_info=True)
         finally:
@@ -648,7 +666,7 @@ def main() -> None:
     root: tk.Tk = tk.Tk()
 
     # Tkinter on macOS already uses native appearance by default
-    app = TTSApp(root)
+    TTSApp(root)
     root.mainloop()
 
 
