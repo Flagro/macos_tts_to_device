@@ -26,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 # Constants
 DEFAULT_VOICE_OPTION = "Default"
+ENGINE_SAY = "say"
+ENGINE_BARK = "bark"
 
 
 class TTSApp:
@@ -46,13 +48,13 @@ class TTSApp:
 
         # Available engines
         self.engines: dict[str, dict[str, Any]] = {
-            "say": {
+            ENGINE_SAY: {
                 "class": SayTTSEngine,
-                "name": settings.ENGINE_METADATA["say"]["name"],
+                "name": settings.ENGINE_METADATA[ENGINE_SAY]["name"],
             },
-            "bark": {
+            ENGINE_BARK: {
                 "class": BarkTTSEngine,
-                "name": settings.ENGINE_METADATA["bark"]["name"],
+                "name": settings.ENGINE_METADATA[ENGINE_BARK]["name"],
             },
         }
 
@@ -112,17 +114,17 @@ class TTSApp:
 
         ttk.Radiobutton(
             engine_frame,
-            text=settings.ENGINE_METADATA["say"]["name"],
+            text=settings.ENGINE_METADATA[ENGINE_SAY]["name"],
             variable=self.engine_var,
-            value="say",
+            value=ENGINE_SAY,
             command=self._on_engine_change,
         ).pack(side=tk.LEFT, padx=5)
 
         ttk.Radiobutton(
             engine_frame,
-            text=settings.ENGINE_METADATA["bark"]["name"],
+            text=settings.ENGINE_METADATA[ENGINE_BARK]["name"],
             variable=self.engine_var,
-            value="bark",
+            value=ENGINE_BARK,
             command=self._on_engine_change,
         ).pack(side=tk.LEFT, padx=5)
 
@@ -336,9 +338,8 @@ class TTSApp:
 
         # Update status
         device_count = len(self.available_devices)
-        self._set_status(
-            f"Refreshed - Found {device_count} device{'s' if device_count != 1 else ''}"
-        )
+        plural = "" if device_count == 1 else "s"
+        self._set_status(f"Refreshed - Found {device_count} device{plural}")
 
         # If engine is already initialized and selected devices changed, update it
         selected_devices = self._get_selected_devices()
@@ -363,7 +364,7 @@ class TTSApp:
         engine_type: str = self.engine_var.get()
 
         try:
-            if engine_type == "bark":
+            if engine_type == ENGINE_BARK:
                 # Load Bark voices
                 from settings import BARK_VOICES
 
@@ -379,7 +380,7 @@ class TTSApp:
                     or not current_voice.startswith("v2/")
                 ):
                     self.voice_var.set(settings.DEFAULT_BARK_SPEAKER)
-            else:  # say
+            elif engine_type == ENGINE_SAY:
                 # Load Say voices
                 try:
                     voices = SayTTSEngine.list_available_voices()
@@ -416,7 +417,7 @@ class TTSApp:
         """Update UI elements based on selected engine."""
         engine_type: str = self.engine_var.get()
 
-        if engine_type == "bark":
+        if engine_type == ENGINE_BARK:
             # Update voice help for Bark
             self.voice_help.config(text=settings.VOICE_HELP_BARK)
             # Show sample rate for Bark
@@ -457,7 +458,7 @@ class TTSApp:
 
             engine_class: type[TTSEngine] = self.engines[engine_type]["class"]
 
-            if engine_type == "say":
+            if engine_type == ENGINE_SAY:
                 # Handle "Default" option (use system default voice)
                 voice_to_use = None if voice == DEFAULT_VOICE_OPTION else voice
                 self.tts_engine = engine_class(
@@ -466,7 +467,7 @@ class TTSApp:
                     timeout=settings.SAY_ENGINE_TIMEOUT,
                     playback_speed=playback_speed,
                 )
-            else:  # bark
+            elif engine_type == ENGINE_BARK:
                 # Handle "Default" option (use default Bark speaker)
                 voice_to_use = (
                     settings.DEFAULT_BARK_SPEAKER
@@ -479,26 +480,28 @@ class TTSApp:
                     sample_rate=sample_rate,
                     playback_speed=playback_speed,
                 )
+            else:
+                raise ValueError(f"Unknown engine type: {engine_type}")
 
             self.current_engine_type = engine_type
             engine_name: str = self.engines[engine_type]["name"]
-            device_count: str = (
-                f"{len(selected_devices)} device{'s' if len(selected_devices) > 1 else ''}"
-            )
+            num_devices = len(selected_devices)
+            plural = "" if num_devices == 1 else "s"
+            device_count_str = f"{num_devices} device{plural}"
             speed_info: str = (
                 f" @ {playback_speed:.1f}x" if playback_speed != 1.0 else ""
             )
             self._set_status(
-                f"Ready - Using {engine_name} ({device_count}){speed_info}"
+                f"Ready - Using {engine_name} ({device_count_str}){speed_info}"
             )
 
         except ImportError as e:
-            if "bark" in str(e).lower() and engine_type != "say":
+            if ENGINE_BARK in str(e).lower() and engine_type != ENGINE_SAY:
                 self._set_status(
                     "Error: Bark not installed. Install with: uv pip install .[bark]"
                 )
                 # Fall back to say (only if not already using say)
-                self.engine_var.set("say")
+                self.engine_var.set(ENGINE_SAY)
                 self._update_engine()
             else:
                 self._set_status(f"Error: {e}")
