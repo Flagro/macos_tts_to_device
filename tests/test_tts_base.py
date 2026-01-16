@@ -2,12 +2,9 @@
 
 import os
 import tempfile
-import threading
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 
-import pytest
 import numpy as np
-import sounddevice as sd
 
 from src.tts_base import TTSEngine
 
@@ -121,13 +118,13 @@ def test_apply_speed_adjustment_no_change():
     """Test that speed adjustment with 1.0x returns original audio."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         engine = ConcreteTTSEngine(output_devices=["Test Device"], tmp_dir=tmp_dir)
-        
+
         # Create test audio data
         original_data = np.random.rand(1000, 2).astype(np.float32)
-        
+
         # Apply 1.0x speed (no change)
         result = engine._apply_speed_adjustment(original_data, 1.0)
-        
+
         # Should return the same data
         assert np.array_equal(result, original_data)
 
@@ -136,13 +133,13 @@ def test_apply_speed_adjustment_faster():
     """Test that speed adjustment makes audio shorter when speed > 1.0."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         engine = ConcreteTTSEngine(output_devices=["Test Device"], tmp_dir=tmp_dir)
-        
+
         # Create test audio data (1000 samples)
         original_data = np.random.rand(1000, 2).astype(np.float32)
-        
+
         # Apply 2.0x speed (should be half the length)
         result = engine._apply_speed_adjustment(original_data, 2.0)
-        
+
         # Result should be approximately half the length
         assert result.shape[0] == 500
         assert result.shape[1] == 2  # Channels should remain the same
@@ -152,13 +149,13 @@ def test_apply_speed_adjustment_slower():
     """Test that speed adjustment makes audio longer when speed < 1.0."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         engine = ConcreteTTSEngine(output_devices=["Test Device"], tmp_dir=tmp_dir)
-        
+
         # Create test audio data (1000 samples)
         original_data = np.random.rand(1000, 2).astype(np.float32)
-        
+
         # Apply 0.5x speed (should be double the length)
         result = engine._apply_speed_adjustment(original_data, 0.5)
-        
+
         # Result should be approximately double the length
         assert result.shape[0] == 2000
         assert result.shape[1] == 2  # Channels should remain the same
@@ -168,13 +165,13 @@ def test_apply_speed_adjustment_mono():
     """Test that speed adjustment works with mono audio."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         engine = ConcreteTTSEngine(output_devices=["Test Device"], tmp_dir=tmp_dir)
-        
+
         # Create mono audio data
         original_data = np.random.rand(1000).astype(np.float32)
-        
+
         # Apply 1.5x speed
         result = engine._apply_speed_adjustment(original_data, 1.5)
-        
+
         # Result should be approximately 2/3 the length
         expected_length = int(1000 / 1.5)
         assert result.shape[0] == expected_length

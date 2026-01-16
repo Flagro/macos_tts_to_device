@@ -1,8 +1,7 @@
 """Tests for GUI interface."""
 
 import tkinter as tk
-from unittest.mock import patch, MagicMock, Mock
-import threading
+from unittest.mock import patch, MagicMock
 
 import pytest
 

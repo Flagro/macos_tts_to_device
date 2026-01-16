@@ -1,8 +1,7 @@
 """Tests for SayTTSEngine."""
 
-import os
 import tempfile
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import patch, MagicMock
 import subprocess
 
 import pytest

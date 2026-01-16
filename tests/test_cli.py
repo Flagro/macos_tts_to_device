@@ -35,6 +35,7 @@ def test_cli_speak_text_with_say_engine():
     runner = CliRunner()
 
     # Mock SayTTSEngine to avoid actual TTS
+    # Patch where it's imported in cli.py, not where it's defined
     with patch("cli.SayTTSEngine") as MockEngine:
         mock_instance = MagicMock()
         MockEngine.return_value = mock_instance
