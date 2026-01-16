@@ -12,7 +12,7 @@ from src.tts_bark import BarkTTSEngine
 @pytest.fixture
 def mock_bark_imports():
     """Mock Bark imports to avoid loading actual models."""
-    with patch("src.tts_bark.preload_models") as mock_preload:
+    with patch("bark.preload_models") as mock_preload:
         mock_preload.return_value = None
         yield mock_preload
 
