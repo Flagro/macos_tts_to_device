@@ -35,11 +35,12 @@ def test_cli_speak_text_with_say_engine():
     runner = CliRunner()
 
     # Mock SayTTSEngine to avoid actual TTS
-    # Patch where it's imported in cli.py, not where it's defined
-    with patch("cli.SayTTSEngine") as MockEngine:
-        mock_instance = MagicMock()
-        MockEngine.return_value = mock_instance
+    # Patch the ENGINES dictionary in cli module
+    mock_engine_class = MagicMock()
+    mock_instance = MagicMock()
+    mock_engine_class.return_value = mock_instance
 
+    with patch("cli.ENGINES", {"say": mock_engine_class, "bark": MagicMock()}):
         result = runner.invoke(
             main,
             [
@@ -54,6 +55,6 @@ def test_cli_speak_text_with_say_engine():
 
         assert result.exit_code == 0
         # Verify engine was initialized
-        MockEngine.assert_called_once()
+        mock_engine_class.assert_called_once()
         # Verify process_text was called with the text
         mock_instance.process_text.assert_called_once_with("Hello world")
