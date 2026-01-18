@@ -2,9 +2,12 @@
 
 import os
 import tempfile
-from unittest.mock import patch
+import threading
+from unittest.mock import patch, MagicMock, call
+from io import StringIO
 
 import numpy as np
+import pytest
 
 from src.tts_base import TTSEngine
 
@@ -175,3 +178,125 @@ def test_apply_speed_adjustment_mono():
         # Result should be approximately 2/3 the length
         expected_length = int(1000 / 1.5)
         assert result.shape[0] == expected_length
+
+
+def test_print_available_devices():
+    """Test that print_available_devices displays device information correctly."""
+    with (
+        patch("sounddevice.query_devices") as mock_query,
+        patch("sounddevice.default.device", [0, 1]),
+        patch("sys.stdout", new_callable=StringIO) as mock_stdout,
+    ):
+
+        # Mock device list
+        mock_query.return_value = [
+            {
+                "name": "Built-in Output",
+                "max_output_channels": 2,
+                "default_samplerate": 44100.0,
+                "hostapi": 0,
+            },
+            {
+                "name": "BlackHole 16ch",
+                "max_output_channels": 16,
+                "default_samplerate": 48000.0,
+                "hostapi": 0,
+            },
+        ]
+
+        TTSEngine.print_available_devices()
+
+        output = mock_stdout.getvalue()
+
+        # Verify output contains expected elements
+        assert "Available Audio Output Devices" in output
+        assert "Built-in Output" in output
+        assert "BlackHole 16ch" in output
+        assert "44100" in output
+        assert "48000" in output
+        assert "(default)" in output  # One device should be marked as default
+
+
+def test_play_on_device_basic():
+    """Test basic audio playback on a single device."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        engine = ConcreteTTSEngine(output_devices=["Test Device"], tmp_dir=tmp_dir)
+
+        # Create a temporary audio file with actual audio data
+        audio_path = os.path.join(tmp_dir, "test_audio.wav")
+        test_audio = np.random.rand(1000, 2).astype(np.float32)
+
+        with (
+            patch("soundfile.read") as mock_read,
+            patch("sounddevice.play") as mock_play,
+            patch("sounddevice.get_stream") as mock_stream,
+            patch("sounddevice.sleep"),
+        ):
+
+            # Mock reading the audio file
+            mock_read.return_value = (test_audio, 24000)
+
+            # Mock the stream to not be active (playback finished)
+            mock_stream_obj = MagicMock()
+            mock_stream_obj.active = False
+            mock_stream.return_value = mock_stream_obj
+
+            # Play the audio
+            engine.play_on_device(audio_path, 24000, "Test Device")
+
+            # Verify soundfile.read was called
+            mock_read.assert_called_once_with(
+                audio_path, dtype="float32", always_2d=True
+            )
+
+            # Verify sounddevice.play was called with correct parameters
+            mock_play.assert_called_once()
+            call_args = mock_play.call_args
+            assert call_args[0][1] == 24000  # Sample rate
+            assert call_args[1]["device"] == "Test Device"
+
+
+def test_play_on_device_with_cancellation():
+    """Test that play_on_device respects cancel_event."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        engine = ConcreteTTSEngine(output_devices=["Test Device"], tmp_dir=tmp_dir)
+
+        audio_path = os.path.join(tmp_dir, "test_audio.wav")
+        test_audio = np.random.rand(1000, 2).astype(np.float32)
+        cancel_event = threading.Event()
+
+        # Set cancel event before playback starts
+        cancel_event.set()
+
+        with (
+            patch("soundfile.read") as mock_read,
+            patch("sounddevice.play") as mock_play,
+        ):
+
+            mock_read.return_value = (test_audio, 24000)
+
+            # Play should be cancelled immediately
+            engine.play_on_device(audio_path, 24000, "Test Device", cancel_event)
+
+            # sounddevice.play should not be called if cancelled before starting
+            mock_play.assert_not_called()
+
+
+def test_play_audio_multiple_devices():
+    """Test playing audio on multiple devices simultaneously."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        devices = ["Device 1", "Device 2", "Device 3"]
+        engine = ConcreteTTSEngine(output_devices=devices, tmp_dir=tmp_dir)
+
+        audio_path = os.path.join(tmp_dir, "test_audio.wav")
+        test_audio = np.random.rand(1000, 2).astype(np.float32)
+
+        with patch.object(engine, "play_on_device") as mock_play_on_device:
+            engine.play_audio(audio_path, 24000)
+
+            # Verify play_on_device was called for each device
+            assert mock_play_on_device.call_count == 3
+
+            # Verify each device was used
+            called_devices = [call[0][2] for call in mock_play_on_device.call_args_list]
+            assert set(called_devices) == set(devices)
