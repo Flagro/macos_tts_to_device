@@ -3,7 +3,7 @@
 import os
 import tempfile
 import threading
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 from io import StringIO
 
 import numpy as np
@@ -300,3 +300,32 @@ def test_play_audio_multiple_devices():
             # Verify each device was used
             called_devices = [call[0][2] for call in mock_play_on_device.call_args_list]
             assert set(called_devices) == set(devices)
+
+
+def test_list_available_devices_single_device():
+    """Test listing devices when only a single device is returned."""
+    with patch("sounddevice.query_devices") as mock_query:
+        # Mock single device (not a list)
+        mock_query.return_value = {
+            "name": "Single Device",
+            "max_output_channels": 2,
+            "default_samplerate": 44100.0,
+            "hostapi": 0,
+        }
+
+        devices = TTSEngine.list_available_devices()
+
+        # Should return a list with one device
+        assert len(devices) == 1
+        assert devices[0]["name"] == "Single Device"
+        assert devices[0]["index"] == 0
+
+
+def test_list_available_devices_error_handling():
+    """Test that list_available_devices handles errors appropriately."""
+    with patch("sounddevice.query_devices") as mock_query:
+        # Simulate an error from sounddevice
+        mock_query.side_effect = RuntimeError("Audio system error")
+
+        with pytest.raises(RuntimeError, match="Failed to query audio devices"):
+            TTSEngine.list_available_devices()
