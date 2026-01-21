@@ -182,11 +182,9 @@ def test_apply_speed_adjustment_mono():
 
 def test_print_available_devices():
     """Test that print_available_devices displays device information correctly."""
-    import sounddevice as sd
-
     with (
         patch("sounddevice.query_devices") as mock_query,
-        patch.object(sd.default, "device", [0, 1]),
+        patch("src.tts_base.sd.default.device", [0, 1]),
         patch("sys.stdout", new_callable=StringIO) as mock_stdout,
     ):
 
