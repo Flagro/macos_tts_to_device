@@ -184,7 +184,7 @@ def test_print_available_devices():
     """Test that print_available_devices displays device information correctly."""
     with (
         patch("sounddevice.query_devices") as mock_query,
-        patch("src.tts_base.sd.default.device", [0, 1]),
+        patch("sounddevice.default.device", [0, 1]),
         patch("sys.stdout", new_callable=StringIO) as mock_stdout,
     ):
 
