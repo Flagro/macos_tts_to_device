@@ -133,11 +133,16 @@ class TTSEngine(ABC):
         """Print a formatted list of all available audio output devices."""
         try:
             devices = TTSEngine.list_available_devices()
-            default_device = (
-                sd.default.device[1]
-                if isinstance(sd.default.device, (list, tuple))
-                else sd.default.device
-            )
+
+            # Safely get the default output device index
+            try:
+                default_val = sd.default.device
+                if isinstance(default_val, (list, tuple)):
+                    default_device = default_val[1]
+                else:
+                    default_device = int(default_val)
+            except (AttributeError, TypeError, ValueError, IndexError):
+                default_device = -1
 
             print(f"\nAvailable Audio Output Devices ({len(devices)} total):\n")
             print(f"{'Index':<6} {'Channels':<9} {'Sample Rate':<12} {'Device Name'}")
