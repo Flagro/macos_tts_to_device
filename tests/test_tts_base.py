@@ -183,8 +183,8 @@ def test_apply_speed_adjustment_mono():
 def test_print_available_devices():
     """Test that print_available_devices displays device information correctly."""
     with (
-        patch("sounddevice.query_devices") as mock_query,
-        patch("sounddevice.default.device", [0, 1]),
+        patch("src.tts_base.sd.query_devices") as mock_query,
+        patch("src.tts_base.sd.default") as mock_default,
         patch("sys.stdout", new_callable=StringIO) as mock_stdout,
     ):
 
@@ -195,14 +195,19 @@ def test_print_available_devices():
                 "max_output_channels": 2,
                 "default_samplerate": 44100.0,
                 "hostapi": 0,
+                "index": 0,
             },
             {
                 "name": "BlackHole 16ch",
                 "max_output_channels": 16,
                 "default_samplerate": 48000.0,
                 "hostapi": 0,
+                "index": 1,
             },
         ]
+
+        # Set the device attribute of the mock to a tuple
+        mock_default.device = (0, 1)
 
         TTSEngine.print_available_devices()
 
