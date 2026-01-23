@@ -76,6 +76,7 @@ class TTSApp:
         self.voice_var: tk.StringVar
         self.voice_help: ttk.Label
         self.voice_combo: ttk.Combobox
+        self.preview_button: ttk.Button
         self.available_voices: list[str] = []
         self.text_input: scrolledtext.ScrolledText
         self.speak_button: ttk.Button
@@ -190,14 +191,21 @@ class TTSApp:
             row=4, column=0, sticky=tk.W, pady=5
         )
 
+        voice_frame = ttk.Frame(main_frame)
+        voice_frame.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
+
         self.voice_var = tk.StringVar(value=settings.DEFAULT_SAY_VOICE)
         self.voice_combo = ttk.Combobox(
-            main_frame,
+            voice_frame,
             textvariable=self.voice_var,
-            width=37,
             state="readonly",
         )
-        self.voice_combo.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
+        self.voice_combo.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        self.preview_button = ttk.Button(
+            voice_frame, text="▶ Preview", command=self._on_preview, width=10
+        )
+        self.preview_button.pack(side=tk.LEFT, padx=(5, 0))
 
         # Help text for voice
         self.voice_help = ttk.Label(
@@ -510,7 +518,7 @@ class TTSApp:
             self._set_status(f"Error initializing engine: {e}")
             logger.error(f"Failed to initialize engine: {e}", exc_info=True)
 
-    def _on_speak(self) -> None:
+    def _on_speak(self, override_text: Optional[str] = None) -> None:
         """Handle speak button click."""
         # Check and set processing flag atomically
         with self.processing_lock:
@@ -520,7 +528,13 @@ class TTSApp:
             self.is_processing = True
 
         try:
-            text: str = self.text_input.get("1.0", tk.END).strip()
+            # Use override text if provided (for previews), otherwise get from input field
+            text: str = (
+                override_text
+                if override_text is not None
+                else self.text_input.get("1.0", tk.END).strip()
+            )
+
             if not text:
                 self._set_status("Please enter some text")
                 with self.processing_lock:
@@ -576,6 +590,7 @@ class TTSApp:
             # Clear any previous cancel flag and update buttons
             self.cancel_event.clear()
             self.speak_button.config(state="disabled")
+            self.preview_button.config(state="disabled")
             self.stop_button.config(state="normal")
 
             # Speak in background thread
@@ -588,6 +603,10 @@ class TTSApp:
             with self.processing_lock:
                 self.is_processing = False
             raise
+
+    def _on_preview(self) -> None:
+        """Handle preview button click."""
+        self._on_speak(override_text=settings.VOICE_PREVIEW_TEXT)
 
     def _on_stop(self) -> None:
         """Handle stop button click."""
@@ -641,6 +660,7 @@ class TTSApp:
             with self.processing_lock:
                 self.is_processing = False
             self.root.after(0, lambda: self.speak_button.config(state="normal"))
+            self.root.after(0, lambda: self.preview_button.config(state="normal"))
             self.root.after(0, lambda: self.stop_button.config(state="disabled"))
 
     def _on_clear(self) -> None:

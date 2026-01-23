@@ -37,6 +37,7 @@ HELP_TEXT_FONT_SIZE = 9
 # Help Text
 VOICE_HELP_SAY = "Select a voice from the dropdown or use Default for system default"
 VOICE_HELP_BARK = "Select a Bark voice preset - try different speakers for varied tone"
+VOICE_PREVIEW_TEXT = "Hello, this is a preview of the selected voice."
 
 # Engine Metadata
 ENGINE_METADATA = {
