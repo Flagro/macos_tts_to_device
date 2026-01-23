@@ -10,6 +10,7 @@ import sys
 import logging
 import click
 
+from src.tts_base import TTSEngine
 from src import SayTTSEngine, BarkTTSEngine
 import settings
 
@@ -93,6 +94,11 @@ ENGINES = {
     is_flag=True,
     help="List all available voices for the selected engine and exit.",
 )
+@click.option(
+    "--list-devices",
+    is_flag=True,
+    help="List all available audio output devices and exit.",
+)
 def main(
     engine,
     devices,
@@ -105,6 +111,7 @@ def main(
     verbose,
     text,
     list_voices,
+    list_devices,
 ):
     """Route TTS audio to specific output devices on macOS.
 
@@ -167,13 +174,25 @@ def main(
             click.echo(f"Error listing voices: {e}", err=True)
             sys.exit(1)
 
+    # Handle --list-devices flag
+    if list_devices:
+        try:
+            TTSEngine.print_available_devices()
+            sys.exit(0)
+        except Exception as e:
+            click.echo(f"Error listing devices: {e}", err=True)
+            sys.exit(1)
+
     logger.info(f"Starting macOS TTS to Device with engine={engine}, devices={devices}")
 
     # Convert devices tuple to list
     devices = list(devices)
 
     # Validate playback speed
-    if playback_speed < settings.MIN_PLAYBACK_SPEED or playback_speed > settings.MAX_PLAYBACK_SPEED:
+    if (
+        playback_speed < settings.MIN_PLAYBACK_SPEED
+        or playback_speed > settings.MAX_PLAYBACK_SPEED
+    ):
         click.echo(
             f"Warning: Playback speed {playback_speed} is outside recommended range "
             f"({settings.MIN_PLAYBACK_SPEED}-{settings.MAX_PLAYBACK_SPEED}). "
@@ -181,7 +200,8 @@ def main(
             err=True,
         )
         playback_speed = max(
-            settings.MIN_PLAYBACK_SPEED, min(settings.MAX_PLAYBACK_SPEED, playback_speed)
+            settings.MIN_PLAYBACK_SPEED,
+            min(settings.MAX_PLAYBACK_SPEED, playback_speed),
         )
 
     # Engine-specific initialization parameters
