@@ -110,11 +110,15 @@ class TTSApp:
         ttk.Label(main_frame, text="Engine:").grid(row=0, column=0, sticky=tk.W, pady=5)
 
         self.engine_var = tk.StringVar(value=settings.DEFAULT_ENGINE)
-        engine_frame: ttk.Frame = ttk.Frame(main_frame)
-        engine_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5)
+        engine_row_frame = ttk.Frame(main_frame)
+        engine_row_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5)
+
+        # Left side: Engine radio buttons
+        engine_selection_frame = ttk.Frame(engine_row_frame)
+        engine_selection_frame.pack(side=tk.LEFT, fill=tk.X)
 
         ttk.Radiobutton(
-            engine_frame,
+            engine_selection_frame,
             text=settings.ENGINE_METADATA[ENGINE_SAY]["name"],
             variable=self.engine_var,
             value=ENGINE_SAY,
@@ -122,12 +126,29 @@ class TTSApp:
         ).pack(side=tk.LEFT, padx=5)
 
         ttk.Radiobutton(
-            engine_frame,
+            engine_selection_frame,
             text=settings.ENGINE_METADATA[ENGINE_BARK]["name"],
             variable=self.engine_var,
             value=ENGINE_BARK,
             command=self._on_engine_change,
         ).pack(side=tk.LEFT, padx=5)
+
+        # Right side: Sample Rate (Bark only)
+        self.sample_rate_frame = ttk.Frame(engine_row_frame)
+        self.sample_rate_frame.pack(side=tk.RIGHT, padx=5)
+
+        self.sample_rate_label = ttk.Label(self.sample_rate_frame, text="Rate:")
+        self.sample_rate_label.pack(side=tk.LEFT, padx=(5, 2))
+
+        self.sample_rate_var = tk.StringVar(value=settings.DEFAULT_SAMPLE_RATE)
+        self.sample_rate_combo = ttk.Combobox(
+            self.sample_rate_frame,
+            textvariable=self.sample_rate_var,
+            values=settings.AVAILABLE_SAMPLE_RATES,
+            width=8,
+            state="readonly",
+        )
+        self.sample_rate_combo.pack(side=tk.LEFT)
 
         # ===== Output Devices =====
         device_label_frame = ttk.Frame(main_frame)
@@ -145,22 +166,6 @@ class TTSApp:
         self.device_frame = ttk.Frame(main_frame)
         self.device_frame.grid(
             row=1, column=1, sticky=(tk.W, tk.E, tk.N), pady=5, padx=5
-        )
-
-        # ===== Sample Rate Selection =====
-        self.sample_rate_label = ttk.Label(main_frame, text="Sample Rate:")
-        self.sample_rate_label.grid(row=2, column=0, sticky=tk.W, pady=5)
-
-        self.sample_rate_var = tk.StringVar(value=settings.DEFAULT_SAMPLE_RATE)
-        self.sample_rate_combo = ttk.Combobox(
-            main_frame,
-            textvariable=self.sample_rate_var,
-            values=settings.AVAILABLE_SAMPLE_RATES,
-            width=37,
-            state="readonly",
-        )
-        self.sample_rate_combo.grid(
-            row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=5
         )
 
         # ===== Playback Speed Control =====
@@ -430,14 +435,12 @@ class TTSApp:
             # Update voice help for Bark
             self.voice_help.config(text=settings.VOICE_HELP_BARK)
             # Show sample rate for Bark
-            self.sample_rate_label.grid()
-            self.sample_rate_combo.grid()
+            self.sample_rate_frame.pack(side=tk.RIGHT, padx=5)
         else:
             # Update voice help for Say
             self.voice_help.config(text=settings.VOICE_HELP_SAY)
             # Hide sample rate for Say (not applicable)
-            self.sample_rate_label.grid_remove()
-            self.sample_rate_combo.grid_remove()
+            self.sample_rate_frame.pack_forget()
 
     def _get_selected_devices(self) -> list[str]:
         """Get list of currently selected devices."""
