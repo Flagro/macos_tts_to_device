@@ -233,9 +233,10 @@ class TTSApp:
         )
         self.text_input.focus()
 
-        # Bind Enter key (with modifier) to speak
+        # Bindings
         self.text_input.bind("<Command-Return>", lambda e: self._on_speak())
         self.text_input.bind("<Control-Return>", lambda e: self._on_speak())
+        self.root.bind("<Escape>", lambda e: self._on_stop())
 
         # ===== Buttons =====
         button_frame: ttk.Frame = ttk.Frame(main_frame)
