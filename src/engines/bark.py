@@ -5,12 +5,13 @@ import numpy as np
 import soundfile as sf
 from typing import Optional
 
-from src.tts_base import TTSEngine
+from ..tts_base import TTSEngine
 from settings import BARK_VOICES
 
 logger = logging.getLogger(__name__)
 
 
+@TTSEngine.register("bark")
 class BarkTTSEngine(TTSEngine):
     """TTS engine using Suno's Bark AI model."""
 
@@ -103,6 +104,8 @@ class BarkTTSEngine(TTSEngine):
         """Return the name of the TTS engine."""
         return "Live Bark TTS"
 
+    supports_sample_rate = True
+
     def _print_engine_specific_info(self):
         """Print Bark-specific configuration info."""
         voice_description = BARK_VOICES.get(self.voice_preset, "Unknown voice")
@@ -152,6 +155,6 @@ class BarkTTSEngine(TTSEngine):
         print("Example: python main.py --engine bark --speaker v2/en_speaker_3")
 
     @staticmethod
-    def get_available_voices():
+    def list_available_voices():
         """Return a list of all available Bark voice presets."""
         return list(BARK_VOICES.keys())

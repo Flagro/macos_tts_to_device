@@ -10,21 +10,17 @@ import sys
 import logging
 import click
 
-from src.tts_base import TTSEngine
-from src import SayTTSEngine, BarkTTSEngine
+from src import TTSEngine
 import settings
 
-# Engine registry for cleaner code
-ENGINES = {
-    "say": SayTTSEngine,
-    "bark": BarkTTSEngine,
-}
+# The engines are automatically loaded when importing from src
+ENGINES = TTSEngine.get_registered_engines()
 
 
 @click.command()
 @click.option(
     "--engine",
-    type=click.Choice(["say", "bark"], case_sensitive=False),
+    type=click.Choice(list(ENGINES.keys()), case_sensitive=False),
     default=settings.DEFAULT_ENGINE,
     show_default=True,
     help="TTS engine to use.",

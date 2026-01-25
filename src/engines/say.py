@@ -6,11 +6,12 @@ from typing import Optional
 
 import soundfile as sf
 
-from src.tts_base import TTSEngine
+from ..tts_base import TTSEngine
 
 logger = logging.getLogger(__name__)
 
 
+@TTSEngine.register("say")
 class SayTTSEngine(TTSEngine):
     """TTS engine using macOS built-in 'say' command."""
 
@@ -100,6 +101,8 @@ class SayTTSEngine(TTSEngine):
     def get_engine_name(self) -> str:
         """Return the name of the TTS engine."""
         return "Live TTS (macOS say)"
+
+    supports_sample_rate = False
 
     def _print_engine_specific_info(self):
         """Print Say-specific configuration info."""

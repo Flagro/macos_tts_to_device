@@ -1,7 +1,19 @@
 """TTS to Device implementations."""
 
 from .tts_base import TTSEngine
-from .tts_say import SayTTSEngine
-from .tts_bark import BarkTTSEngine
+from .engines import load_engines
 
-__all__ = ["TTSEngine", "SayTTSEngine", "BarkTTSEngine"]
+# Pre-load engines so they are registered when src is imported
+load_engines()
+
+# For backward compatibility, though using TTSEngine.get_engine_class() is preferred
+def _get_engine_safe(engine_id):
+    try:
+        return TTSEngine.get_engine_class(engine_id)
+    except ValueError:
+        return None
+
+SayTTSEngine = _get_engine_safe("say")
+BarkTTSEngine = _get_engine_safe("bark")
+
+__all__ = ["TTSEngine", "load_engines", "SayTTSEngine", "BarkTTSEngine"]
