@@ -11,7 +11,7 @@ from gui import TTSApp
 @pytest.fixture
 def mock_tts_engines():
     """Mock TTS engine classes."""
-    with patch("gui.SayTTSEngine") as mock_say, patch("gui.BarkTTSEngine") as mock_bark:
+    with patch("src.engines.say.SayTTSEngine") as mock_say, patch("src.engines.bark.BarkTTSEngine") as mock_bark:
         mock_say_instance = MagicMock()
         mock_say_instance.output_devices = ["Test Device"]
         mock_say_instance.voice = None
@@ -43,7 +43,7 @@ def test_gui_initialization(mock_tts_engines):
             ]
 
             # Mock list_available_voices for Say
-            with patch("src.tts_say.SayTTSEngine.list_available_voices") as mock_voices:
+            with patch("src.engines.say.SayTTSEngine.list_available_voices") as mock_voices:
                 mock_voices.return_value = [("Alex", "en_US", "Test voice")]
 
                 app = TTSApp(root)
@@ -71,7 +71,7 @@ def test_gui_engine_switching(mock_tts_engines):
                 }
             ]
 
-            with patch("src.tts_say.SayTTSEngine.list_available_voices") as mock_voices:
+            with patch("src.engines.say.SayTTSEngine.list_available_voices") as mock_voices:
                 mock_voices.return_value = [("Alex", "en_US", "Test voice")]
 
                 app = TTSApp(root)
@@ -104,7 +104,7 @@ def test_gui_speak_button_validation(mock_tts_engines):
                 }
             ]
 
-            with patch("src.tts_say.SayTTSEngine.list_available_voices") as mock_voices:
+            with patch("src.engines.say.SayTTSEngine.list_available_voices") as mock_voices:
                 mock_voices.return_value = [("Alex", "en_US", "Test voice")]
 
                 app = TTSApp(root)
@@ -138,7 +138,7 @@ def test_gui_device_validation(mock_tts_engines):
                 }
             ]
 
-            with patch("src.tts_say.SayTTSEngine.list_available_voices") as mock_voices:
+            with patch("src.engines.say.SayTTSEngine.list_available_voices") as mock_voices:
                 mock_voices.return_value = [("Alex", "en_US", "Test voice")]
 
                 app = TTSApp(root)
@@ -172,7 +172,7 @@ def test_gui_clear_button(mock_tts_engines):
                 }
             ]
 
-            with patch("src.tts_say.SayTTSEngine.list_available_voices") as mock_voices:
+            with patch("src.engines.say.SayTTSEngine.list_available_voices") as mock_voices:
                 mock_voices.return_value = [("Alex", "en_US", "Test voice")]
 
                 app = TTSApp(root)
@@ -208,7 +208,7 @@ def test_gui_playback_speed_change(mock_tts_engines):
                 }
             ]
 
-            with patch("src.tts_say.SayTTSEngine.list_available_voices") as mock_voices:
+            with patch("src.engines.say.SayTTSEngine.list_available_voices") as mock_voices:
                 mock_voices.return_value = [("Alex", "en_US", "Test voice")]
 
                 app = TTSApp(root)
@@ -332,7 +332,7 @@ def test_gui_sample_rate_visibility(mock_tts_engines):
                 }
             ]
 
-            with patch("src.tts_say.SayTTSEngine.list_available_voices") as mock_voices:
+            with patch("src.engines.say.SayTTSEngine.list_available_voices") as mock_voices:
                 mock_voices.return_value = [("Alex", "en_US", "Test voice")]
 
                 app = TTSApp(root)

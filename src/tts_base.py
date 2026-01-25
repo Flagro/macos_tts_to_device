@@ -18,6 +18,29 @@ logger = logging.getLogger(__name__)
 class TTSEngine(ABC):
     """Base class for TTS engines with multi-device playback support."""
 
+    _registry: dict[str, type["TTSEngine"]] = {}
+
+    @classmethod
+    def register(cls, engine_id: str):
+        """Decorator to register a TTS engine."""
+        def wrapper(subclass):
+            cls._registry[engine_id] = subclass
+            subclass.engine_id = engine_id
+            return subclass
+        return wrapper
+
+    @classmethod
+    def get_registered_engines(cls) -> dict[str, type["TTSEngine"]]:
+        """Get all registered TTS engines."""
+        return cls._registry
+
+    @classmethod
+    def get_engine_class(cls, engine_id: str) -> type["TTSEngine"]:
+        """Get a registered engine class by ID."""
+        if engine_id not in cls._registry:
+            raise ValueError(f"Engine '{engine_id}' not found in registry.")
+        return cls._registry[engine_id]
+
     def __init__(
         self,
         output_devices: list[str],
@@ -68,14 +91,21 @@ class TTSEngine(ABC):
         """Return the name of the TTS engine."""
         pass
 
+    supports_sample_rate: bool = False
+
+    @staticmethod
+    @abstractmethod
+    def list_available_voices() -> list[Any]:
+        """
+        Return a list of available voices/presets for this TTS engine.
+        """
+        pass
+
     @staticmethod
     @abstractmethod
     def print_available_voices():
         """
         Print a formatted list of available voices for this TTS engine.
-
-        This method should be implemented as a static method that displays
-        all available voices in a user-friendly format.
         """
         pass
 

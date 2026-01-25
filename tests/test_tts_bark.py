@@ -6,7 +6,7 @@ import numpy as np
 
 import pytest
 
-from src.tts_bark import BarkTTSEngine
+from src.engines.bark import BarkTTSEngine
 
 
 @pytest.fixture
@@ -65,7 +65,7 @@ def test_generate_audio_success(mock_bark_imports):
 def test_voice_preset_validation_warning(mock_bark_imports):
     """Test that invalid voice preset triggers warning."""
     with tempfile.TemporaryDirectory() as tmp_dir:
-        with patch("src.tts_bark.logger") as mock_logger:
+        with patch("src.engines.bark.logger") as mock_logger:
             engine = BarkTTSEngine(
                 output_devices=["Test Device"],
                 voice_preset="invalid_voice",

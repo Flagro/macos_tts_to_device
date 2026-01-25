@@ -23,7 +23,7 @@ def test_cli_list_voices_say():
     runner = CliRunner()
 
     # Mock list_available_voices to avoid calling actual 'say' command
-    with patch("src.tts_say.SayTTSEngine.print_available_voices") as mock_print:
+    with patch("src.engines.say.SayTTSEngine.print_available_voices") as mock_print:
         result = runner.invoke(main, ["--engine", "say", "--list-voices"])
 
         assert result.exit_code == 0
