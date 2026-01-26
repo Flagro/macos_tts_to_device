@@ -37,6 +37,7 @@ HELP_TEXT_FONT_SIZE = 9
 # Help Text
 VOICE_HELP_SAY = "Select a voice from the dropdown or use Default for system default"
 VOICE_HELP_BARK = "Select a Bark voice preset - try different speakers for varied tone"
+VOICE_HELP_PIPER = "Select a Piper model file (.onnx) from the models/piper directory"
 VOICE_PREVIEW_TEXT = "Hello, this is a preview of the selected voice."
 
 # Engine Metadata
@@ -49,7 +50,15 @@ ENGINE_METADATA = {
         "name": "Bark AI (Natural)",
         "supports_sample_rate": True,
     },
+    "piper": {
+        "name": "Piper TTS (Fast & Local)",
+        "supports_sample_rate": False,
+    },
 }
+
+# Piper Configuration
+PIPER_MODEL_PATH = "en_US-lessac-medium.onnx"  # Default model path
+PIPER_VOICES_DIR = "models/piper"  # Directory to store piper models
 
 # Logging Configuration
 LOG_LEVEL = "WARNING"
@@ -202,3 +211,6 @@ BARK_VOICES = {
     "v2/zh_speaker_8": "Chinese Speaker 8",
     "v2/zh_speaker_9": "Chinese Speaker 9",
 }
+
+# Piper voices mapping (if you want to add descriptions later)
+PIPER_VOICES = {}
