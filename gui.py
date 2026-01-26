@@ -52,7 +52,9 @@ class TTSApp:
             # We'll instantiate a temporary engine or use class properties if we had them
             # For now, we'll keep using settings for display names to minimize refactoring
             # but we can improve this later.
-            display_name = settings.ENGINE_METADATA.get(engine_id, {}).get("name", engine_id.capitalize())
+            display_name = settings.ENGINE_METADATA.get(engine_id, {}).get(
+                "name", engine_id.capitalize()
+            )
             self.engines[engine_id] = {
                 "class": engine_class,
                 "name": display_name,
@@ -373,11 +375,11 @@ class TTSApp:
 
         try:
             voices = engine_class.list_available_voices()
-            
+
             # Format voices for the combobox
             if engine_type == ENGINE_BARK:
                 self.available_voices = [DEFAULT_VOICE_OPTION] + list(voices)
-                
+
                 # Set default if current value is not valid for Bark
                 current_voice = self.voice_var.get()
                 if (
@@ -423,6 +425,8 @@ class TTSApp:
             self.voice_help.config(text=settings.VOICE_HELP_BARK)
         elif engine_type == ENGINE_SAY:
             self.voice_help.config(text=settings.VOICE_HELP_SAY)
+        elif engine_type == "piper":
+            self.voice_help.config(text=settings.VOICE_HELP_PIPER)
         else:
             self.voice_help.config(text=f"Select a voice for {engine_type}")
 
@@ -480,6 +484,18 @@ class TTSApp:
                     output_devices=selected_devices,
                     voice_preset=voice_to_use,
                     sample_rate=sample_rate,
+                    playback_speed=playback_speed,
+                )
+            elif engine_type == "piper":
+                # Handle "Default" option
+                voice_to_use = (
+                    settings.PIPER_MODEL_PATH
+                    if voice == DEFAULT_VOICE_OPTION
+                    else os.path.join(settings.PIPER_VOICES_DIR, voice)
+                )
+                self.tts_engine = engine_class(
+                    output_devices=selected_devices,
+                    model_path=voice_to_use,
                     playback_speed=playback_speed,
                 )
             else:
@@ -568,8 +584,18 @@ class TTSApp:
                 )
                 if (
                     getattr(self.tts_engine, "voice_preset", None) != voice_to_check
-                    or getattr(self.tts_engine, "sample_rate", None) != current_sample_rate
+                    or getattr(self.tts_engine, "sample_rate", None)
+                    != current_sample_rate
                 ):
+                    needs_reinit = True
+            elif getattr(self.tts_engine, "engine_id", None) == "piper":
+                # Check if Piper model changed
+                voice_to_check = (
+                    settings.PIPER_MODEL_PATH
+                    if voice == DEFAULT_VOICE_OPTION
+                    else os.path.join(settings.PIPER_VOICES_DIR, voice)
+                )
+                if getattr(self.tts_engine, "model_path", None) != voice_to_check:
                     needs_reinit = True
 
             # Check if playback speed changed
@@ -616,7 +642,10 @@ class TTSApp:
     def _speak_threaded(self, text: str) -> None:
         """Speak text in a background thread."""
         # Show progress bar if using Bark
-        is_bark = self.tts_engine and getattr(self.tts_engine, "engine_id", None) == ENGINE_BARK
+        is_bark = (
+            self.tts_engine
+            and getattr(self.tts_engine, "engine_id", None) == ENGINE_BARK
+        )
         if is_bark:
             self.root.after(0, lambda: self._show_progress())
             self.root.after(

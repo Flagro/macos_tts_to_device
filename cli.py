@@ -59,6 +59,13 @@ ENGINES = TTSEngine.get_registered_engines()
     help="[Bark engine] Bark output sample rate in Hz.",
 )
 @click.option(
+    "--model",
+    type=str,
+    default=settings.PIPER_MODEL_PATH,
+    show_default=True,
+    help="[Piper engine] Path to Piper .onnx model file.",
+)
+@click.option(
     "--playback-speed",
     type=float,
     default=settings.DEFAULT_PLAYBACK_SPEED,
@@ -108,6 +115,7 @@ def main(
     text,
     list_voices,
     list_devices,
+    model,
 ):
     """Route TTS audio to specific output devices on macOS.
 
@@ -214,6 +222,11 @@ def main(
             "sample_rate": sample_rate,
             "playback_speed": playback_speed,
         },
+        "piper": {
+            "output_devices": devices,
+            "model_path": model,
+            "playback_speed": playback_speed,
+        },
     }
 
     # Initialize the TTS engine
@@ -224,6 +237,12 @@ def main(
         if "bark" in str(e).lower():
             click.echo("\nError: Bark library not installed.", err=True)
             click.echo("Install it with: uv pip install .[bark]", err=True)
+            click.echo(
+                "Or use the 'say' engine instead: python main.py --engine say", err=True
+            )
+        elif "piper" in str(e).lower():
+            click.echo("\nError: Piper library not installed.", err=True)
+            click.echo("Install it with: uv pip install .[piper]", err=True)
             click.echo(
                 "Or use the 'say' engine instead: python main.py --engine say", err=True
             )
