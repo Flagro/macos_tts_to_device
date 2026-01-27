@@ -10,14 +10,21 @@ import sys
 import logging
 import click
 
-from src import TTSEngine
+from src import TTSEngine, ProfileManager
 import settings
 
 # The engines are automatically loaded when importing from src
 ENGINES = TTSEngine.get_registered_engines()
+profile_manager = ProfileManager()
 
 
 @click.command()
+@click.option(
+    "--profile",
+    type=str,
+    default=None,
+    help="Load settings from a saved profile.",
+)
 @click.option(
     "--engine",
     type=click.Choice(list(ENGINES.keys()), case_sensitive=False),
@@ -116,11 +123,14 @@ def main(
     list_voices,
     list_devices,
     model,
+    profile,
 ):
     """Route TTS audio to specific output devices on macOS.
 
     \b
     Examples:
+      # Load settings from a profile
+      python main.py --profile "Gaming" --text "Hello"
       # List available voices for the say engine
       python main.py --engine say --list-voices
 
@@ -162,6 +172,26 @@ def main(
     )
 
     logger = logging.getLogger(__name__)
+
+    # Load profile if specified
+    if profile:
+        profile_data = profile_manager.get_profile(profile)
+        if not profile_data:
+            click.echo(f"Error: Profile '{profile}' not found.", err=True)
+            sys.exit(1)
+
+        # Override arguments with profile data
+        engine = profile_data.get("engine", engine)
+        devices = profile_data.get("devices", list(devices))
+        voice = profile_data.get("voice", voice)
+        playback_speed = profile_data.get("speed", playback_speed)
+        sample_rate = int(profile_data.get("sample_rate", sample_rate))
+        # For Bark engine, we might save speaker as voice in profile
+        if engine == "bark":
+            speaker = profile_data.get("voice", speaker)
+        # For Piper engine
+        if engine == "piper":
+            model = profile_data.get("voice", model)
 
     # Get the engine class
     engine_class = ENGINES.get(engine)

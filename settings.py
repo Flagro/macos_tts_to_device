@@ -60,6 +60,9 @@ ENGINE_METADATA = {
 PIPER_MODEL_PATH = "en_US-lessac-medium.onnx"  # Default model path
 PIPER_VOICES_DIR = "models/piper"  # Directory to store piper models
 
+# Profiles Configuration
+PROFILES_FILE = "profiles.json"
+
 # Logging Configuration
 LOG_LEVEL = "WARNING"
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

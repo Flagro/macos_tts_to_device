@@ -6,12 +6,13 @@ A minimalistic Tkinter-based GUI for routing text-to-speech audio to specific de
 """
 
 import logging
+import os
 import threading
 import tkinter as tk
 from tkinter import ttk, scrolledtext
 from typing import Optional, Union, Any
 
-from src import TTSEngine
+from src import TTSEngine, ProfileManager
 import settings
 
 # Configure logging
@@ -86,6 +87,10 @@ class TTSApp:
         self.status_var: tk.StringVar
         self.progress_bar: ttk.Progressbar
 
+        # Profile management
+        self.profile_manager = ProfileManager()
+        self.profile_var: tk.StringVar
+
         # Create UI
         self._create_widgets()
         self._load_audio_devices()
@@ -105,15 +110,37 @@ class TTSApp:
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
         main_frame.rowconfigure(
-            6, weight=1
-        )  # Updated from 5 to 6 for playback speed row
+            7, weight=1
+        )  # Updated from 6 to 7 for playback speed row
+
+        # ===== Profile Selection =====
+        ttk.Label(main_frame, text="Profile:").grid(
+            row=0, column=0, sticky=tk.W, pady=5
+        )
+
+        profile_frame = ttk.Frame(main_frame)
+        profile_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5)
+
+        self.profile_var = tk.StringVar()
+        self.profile_combo = ttk.Combobox(
+            profile_frame,
+            textvariable=self.profile_var,
+            state="readonly",
+        )
+        self.profile_combo.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.profile_combo.bind("<<ComboboxSelected>>", self._on_profile_select)
+        self._refresh_profile_list()
+
+        ttk.Button(
+            profile_frame, text="Save", command=self._on_profile_save, width=8
+        ).pack(side=tk.LEFT, padx=(5, 0))
 
         # ===== Engine Selection =====
-        ttk.Label(main_frame, text="Engine:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        ttk.Label(main_frame, text="Engine:").grid(row=1, column=0, sticky=tk.W, pady=5)
 
         self.engine_var = tk.StringVar(value=settings.DEFAULT_ENGINE)
         engine_row_frame = ttk.Frame(main_frame)
-        engine_row_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5)
+        engine_row_frame.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5)
 
         # Left side: Engine radio buttons
         engine_selection_frame = ttk.Frame(engine_row_frame)
@@ -147,7 +174,7 @@ class TTSApp:
 
         # ===== Output Devices =====
         device_label_frame = ttk.Frame(main_frame)
-        device_label_frame.grid(row=1, column=0, sticky=(tk.W, tk.N), pady=5)
+        device_label_frame.grid(row=2, column=0, sticky=(tk.W, tk.N), pady=5)
 
         ttk.Label(device_label_frame, text="Output Devices:").pack(anchor=tk.W)
         ttk.Button(
@@ -160,7 +187,7 @@ class TTSApp:
         # Frame for device checkboxes (will be populated by _load_audio_devices)
         self.device_frame = ttk.Frame(main_frame)
         self.device_frame.grid(
-            row=1, column=1, sticky=(tk.W, tk.E, tk.N), pady=5, padx=5
+            row=2, column=1, sticky=(tk.W, tk.E, tk.N), pady=5, padx=5
         )
 
         # ===== Playback Speed Control =====
@@ -284,6 +311,80 @@ class TTSApp:
             padding=(5, 2),
         )
         status_bar.grid(row=9, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+
+    def _refresh_profile_list(self) -> None:
+        """Update the profile combobox with current profile names."""
+        profiles = self.profile_manager.list_profiles()
+        self.profile_combo["values"] = profiles
+        if not self.profile_var.get() and profiles:
+            self.profile_combo.set("")
+
+    def _on_profile_select(self, event: Optional[tk.Event] = None) -> None:
+        """Load settings from the selected profile."""
+        name = self.profile_var.get()
+        profile = self.profile_manager.get_profile(name)
+        if not profile:
+            return
+
+        try:
+            # Set engine
+            engine_id = profile.get("engine")
+            if engine_id in self.engines:
+                self.engine_var.set(engine_id)
+                self._on_engine_change()
+
+            # Set voice
+            voice = profile.get("voice")
+            if voice:
+                self.voice_var.set(voice)
+
+            # Set speed
+            speed = profile.get("speed", settings.DEFAULT_PLAYBACK_SPEED)
+            self.playback_speed_var.set(speed)
+            self._on_playback_speed_change(str(speed))
+
+            # Set sample rate if applicable
+            sample_rate = profile.get("sample_rate")
+            if sample_rate:
+                self.sample_rate_var.set(str(sample_rate))
+
+            # Set devices
+            devices = profile.get("devices", [])
+            for device_name, var in self.device_vars.items():
+                var.set(device_name in devices)
+
+            self._set_status(f"Loaded profile: {name}")
+        except Exception as e:
+            logger.error(f"Failed to load profile '{name}': {e}")
+            self._set_status(f"Error loading profile: {e}")
+
+    def _on_profile_save(self) -> None:
+        """Save current settings to a profile."""
+        from tkinter import simpledialog, messagebox
+
+        name = simpledialog.askstring(
+            "Save Profile",
+            "Enter profile name:",
+            initialvalue=self.profile_var.get(),
+            parent=self.root,
+        )
+        if not name:
+            return
+
+        settings_dict = {
+            "engine": self.engine_var.get(),
+            "voice": self.voice_var.get(),
+            "speed": self.playback_speed_var.get(),
+            "sample_rate": self.sample_rate_var.get(),
+            "devices": self._get_selected_devices(),
+        }
+
+        if self.profile_manager.save_profile(name, settings_dict):
+            self._refresh_profile_list()
+            self.profile_var.set(name)
+            self._set_status(f"Saved profile: {name}")
+        else:
+            messagebox.showerror("Error", f"Failed to save profile '{name}'")
 
     def _initialize_default_engine(self) -> None:
         """Initialize the default TTS engine."""
