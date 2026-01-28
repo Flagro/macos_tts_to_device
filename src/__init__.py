@@ -3,6 +3,7 @@
 from .tts_base import TTSEngine
 from .engines import load_engines
 from .profiles import ProfileManager
+from .history import HistoryManager
 
 # Pre-load engines so they are registered when src is imported
 load_engines()
@@ -19,4 +20,11 @@ def _get_engine_safe(engine_id):
 SayTTSEngine = _get_engine_safe("say")
 BarkTTSEngine = _get_engine_safe("bark")
 
-__all__ = ["TTSEngine", "load_engines", "SayTTSEngine", "BarkTTSEngine"]
+__all__ = [
+    "TTSEngine",
+    "load_engines",
+    "SayTTSEngine",
+    "BarkTTSEngine",
+    "ProfileManager",
+    "HistoryManager",
+]
