@@ -62,6 +62,8 @@ PIPER_VOICES_DIR = "models/piper"  # Directory to store piper models
 
 # Profiles Configuration
 PROFILES_FILE = "profiles.json"
+HISTORY_FILE = "history.json"
+MAX_HISTORY_ITEMS = 50
 
 # Logging Configuration
 LOG_LEVEL = "WARNING"

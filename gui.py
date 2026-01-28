@@ -8,11 +8,12 @@ A minimalistic Tkinter-based GUI for routing text-to-speech audio to specific de
 import logging
 import os
 import threading
+from datetime import datetime
 import tkinter as tk
 from tkinter import ttk, scrolledtext
 from typing import Optional, Union, Any
 
-from src import TTSEngine, ProfileManager
+from src import TTSEngine, ProfileManager, HistoryManager
 import settings
 
 # Configure logging
@@ -91,6 +92,10 @@ class TTSApp:
         self.profile_manager = ProfileManager()
         self.profile_var: tk.StringVar
 
+        # History management
+        self.history_manager = HistoryManager()
+        self.history_listbox: Optional[tk.Listbox] = None
+
         # Create UI
         self._create_widgets()
         self._load_audio_devices()
@@ -101,13 +106,26 @@ class TTSApp:
     def _create_widgets(self) -> None:
         """Create all UI widgets."""
 
-        # Main container with padding
-        main_frame: ttk.Frame = ttk.Frame(self.root, padding="10")
+        # Use Notebook for tabs
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # Tab 1: TTS Interface
+        main_tab = ttk.Frame(self.notebook)
+        self.notebook.add(main_tab, text="TTS")
+
+        # Main container with padding (now inside main_tab)
+        main_frame: ttk.Frame = ttk.Frame(main_tab, padding="10")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
+        # Tab 2: History
+        history_tab = ttk.Frame(self.notebook)
+        self.notebook.add(history_tab, text="History")
+        self._create_history_widgets(history_tab)
+
         # Configure grid weights for responsiveness
-        self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(0, weight=1)
+        main_tab.columnconfigure(0, weight=1)
+        main_tab.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
         main_frame.rowconfigure(
             7, weight=1
@@ -385,6 +403,138 @@ class TTSApp:
             self._set_status(f"Saved profile: {name}")
         else:
             messagebox.showerror("Error", f"Failed to save profile '{name}'")
+
+    def _create_history_widgets(self, parent: ttk.Frame) -> None:
+        """Create widgets for the history tab."""
+        parent.columnconfigure(0, weight=1)
+        parent.rowconfigure(0, weight=1)
+
+        # Listbox for history entries
+        history_frame = ttk.Frame(parent, padding="10")
+        history_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        history_frame.columnconfigure(0, weight=1)
+        history_frame.rowconfigure(0, weight=1)
+
+        self.history_listbox = tk.Listbox(
+            history_frame,
+            font=("", settings.TEXT_INPUT_FONT_SIZE),
+            selectmode=tk.SINGLE,
+        )
+        self.history_listbox.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        # Scrollbar for listbox
+        scrollbar = ttk.Scrollbar(
+            history_frame, orient=tk.VERTICAL, command=self.history_listbox.yview
+        )
+        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        self.history_listbox.config(yscrollcommand=scrollbar.set)
+
+        # Bind double-click or enter to load from history
+        self.history_listbox.bind(
+            "<Double-Button-1>", lambda e: self._on_history_load()
+        )
+        self.history_listbox.bind("<Return>", lambda e: self._on_history_load())
+
+        # Buttons frame
+        btn_frame = ttk.Frame(history_frame, padding=(0, 10, 0, 0))
+        btn_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E))
+
+        ttk.Button(
+            btn_frame, text="Replay", command=self._on_history_replay, width=15
+        ).pack(side=tk.LEFT, padx=5)
+        ttk.Button(
+            btn_frame, text="Load Settings", command=self._on_history_load, width=15
+        ).pack(side=tk.LEFT, padx=5)
+        ttk.Button(
+            btn_frame, text="Clear History", command=self._on_history_clear, width=15
+        ).pack(side=tk.LEFT, padx=5)
+
+        self._refresh_history_list()
+
+    def _refresh_history_list(self) -> None:
+        """Update the history listbox with current entries."""
+        if not self.history_listbox:
+            return
+
+        self.history_listbox.delete(0, tk.END)
+        for entry in self.history_manager.get_history():
+            # Format: [Timestamp] Engine: Text...
+            ts = datetime.fromisoformat(entry["timestamp"]).strftime("%H:%M:%S")
+            text_preview = entry["text"].replace("\n", " ")[:40]
+            if len(entry["text"]) > 40:
+                text_preview += "..."
+            label = f"[{ts}] {entry['engine']}: {text_preview}"
+            self.history_listbox.insert(tk.END, label)
+
+    def _on_history_load(self) -> None:
+        """Load settings and text from the selected history item."""
+        selection = self.history_listbox.curselection()
+        if not selection:
+            return
+
+        index = selection[0]
+        entry = self.history_manager.get_history()[index]
+
+        try:
+            # Set text
+            self.text_input.delete("1.0", tk.END)
+            self.text_input.insert("1.0", entry["text"])
+
+            # Set engine
+            engine_id = entry.get("engine")
+            if engine_id in self.engines:
+                self.engine_var.set(engine_id)
+                self._on_engine_change()
+
+            # Set voice
+            voice = entry.get("voice")
+            if voice:
+                self.voice_var.set(voice)
+
+            # Set speed
+            speed = entry.get("speed", settings.DEFAULT_PLAYBACK_SPEED)
+            self.playback_speed_var.set(speed)
+            self._on_playback_speed_change(str(speed))
+
+            # Set sample rate
+            sample_rate = entry.get("sample_rate")
+            if sample_rate:
+                self.sample_rate_var.set(str(sample_rate))
+
+            # Set devices
+            devices = entry.get("devices", [])
+            for device_name, var in self.device_vars.items():
+                var.set(device_name in devices)
+
+            # Switch back to main tab
+            self.notebook.select(0)
+            self._set_status("Loaded settings from history")
+
+        except Exception as e:
+            logger.error(f"Failed to load history item: {e}")
+            self._set_status(f"Error loading from history: {e}")
+
+    def _on_history_replay(self) -> None:
+        """Instantly replay the selected history item."""
+        selection = self.history_listbox.curselection()
+        if not selection:
+            return
+
+        # First load the settings
+        self._on_history_load()
+        # Then speak
+        self._on_speak()
+
+    def _on_history_clear(self) -> None:
+        """Clear all history entries."""
+        from tkinter import messagebox
+
+        if messagebox.askyesno(
+            "Clear History", "Are you sure you want to clear all history?"
+        ):
+            self.history_manager.clear_history()
+            self._refresh_history_list()
+            self._set_status("History cleared")
 
     def _initialize_default_engine(self) -> None:
         """Initialize the default TTS engine."""
@@ -772,6 +922,20 @@ class TTSApp:
                 self.root.after(0, lambda: self._set_status("Stopped"))
             else:
                 self.root.after(0, lambda: self._set_status("Playback complete"))
+                # Record in history
+                self.history_manager.add_entry(
+                    text=text,
+                    engine_id=self.engine_var.get(),
+                    voice=self.voice_var.get(),
+                    speed=self.playback_speed_var.get(),
+                    devices=self._get_selected_devices(),
+                    sample_rate=(
+                        self.sample_rate_var.get()
+                        if self.sample_rate_frame.winfo_viewable()
+                        else None
+                    ),
+                )
+                self.root.after(0, lambda: self._refresh_history_list())
         except Exception as e:
             error_msg: str = f"Error: {e}"
             self.root.after(0, lambda: self._set_status(error_msg))
