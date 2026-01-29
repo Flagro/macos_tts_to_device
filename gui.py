@@ -8,6 +8,7 @@ A minimalistic Tkinter-based GUI for routing text-to-speech audio to specific de
 import logging
 import os
 import threading
+import asyncio
 from datetime import datetime
 import tkinter as tk
 from tkinter import ttk, scrolledtext
@@ -95,6 +96,10 @@ class TTSApp:
         # History management
         self.history_manager = HistoryManager()
         self.history_listbox: Optional[tk.Listbox] = None
+
+        # Asyncio loop for background tasks
+        self.loop = asyncio.new_event_loop()
+        threading.Thread(target=self._run_async_loop, daemon=True).start()
 
         # Create UI
         self._create_widgets()
@@ -779,6 +784,11 @@ class TTSApp:
             self._set_status(f"Error initializing engine: {e}")
             logger.error(f"Failed to initialize engine: {e}", exc_info=True)
 
+    def _run_async_loop(self) -> None:
+        """Run the asyncio event loop in a background thread."""
+        asyncio.set_event_loop(self.loop)
+        self.loop.run_forever()
+
     def _on_speak(self, override_text: Optional[str] = None) -> None:
         """Handle speak button click."""
         # Check and set processing flag atomically
@@ -864,13 +874,11 @@ class TTSApp:
             self.preview_button.config(state="disabled")
             self.stop_button.config(state="normal")
 
-            # Speak in background thread
-            threading.Thread(
-                target=self._speak_threaded, args=(text,), daemon=True
-            ).start()
+            # Speak asynchronously
+            asyncio.run_coroutine_threadsafe(self._speak_async(text), self.loop)
         except Exception as e:
-            # If any error occurs before thread starts, reset processing flag
-            logger.error(f"Error in _on_speak before thread start: {e}", exc_info=True)
+            # If any error occurs before task starts, reset processing flag
+            logger.error(f"Error in _on_speak before task start: {e}", exc_info=True)
             with self.processing_lock:
                 self.is_processing = False
             raise
@@ -890,13 +898,12 @@ class TTSApp:
         self._set_status("Stopping...")
         logger.info("Stop requested by user")
 
-    def _speak_threaded(self, text: str) -> None:
-        """Speak text in a background thread."""
+    async def _speak_async(self, text: str) -> None:
+        """Speak text asynchronously."""
         # Show progress bar if using Bark
-        is_bark = (
-            self.tts_engine
-            and getattr(self.tts_engine, "engine_id", None) == ENGINE_BARK
-        )
+        engine_id = getattr(self.tts_engine, "engine_id", None)
+        is_bark = engine_id == ENGINE_BARK
+
         if is_bark:
             self.root.after(0, lambda: self._show_progress())
             self.root.after(
@@ -915,7 +922,8 @@ class TTSApp:
                 )
                 return
 
-            self.tts_engine.process_text(text, self.cancel_event)
+            # Use the new async method
+            await self.tts_engine.async_process_text(text, self.cancel_event)
 
             # Check if cancelled
             if self.cancel_event.is_set():
