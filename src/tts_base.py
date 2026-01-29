@@ -4,6 +4,7 @@ import os
 import uuid
 import logging
 import threading
+import asyncio
 from abc import ABC, abstractmethod
 from typing import Optional, Any
 
@@ -23,10 +24,12 @@ class TTSEngine(ABC):
     @classmethod
     def register(cls, engine_id: str):
         """Decorator to register a TTS engine."""
+
         def wrapper(subclass):
             cls._registry[engine_id] = subclass
             subclass.engine_id = engine_id
             return subclass
+
         return wrapper
 
     @classmethod
@@ -310,6 +313,63 @@ class TTSEngine(ABC):
                     logger.debug(f"Cleaned up temporary file: {audio_path}")
                 except OSError as e:
                     logger.warning(f"Failed to remove temporary file {audio_path}: {e}")
+
+    async def async_process_text(
+        self, text: str, cancel_event: Optional[threading.Event] = None
+    ):
+        """
+        Asynchronously process text input.
+
+        Args:
+            text: Text to convert to speech
+            cancel_event: Optional threading.Event to signal cancellation
+        """
+        audio_path = None
+        logger.info(
+            f"Async processing text: '{text[:50]}{'...' if len(text) > 50 else ''}'"
+        )
+        try:
+            if cancel_event and cancel_event.is_set():
+                return
+
+            # Run generation in a thread to keep the event loop free
+            audio_path, sample_rate = await asyncio.to_thread(self.generate_audio, text)
+
+            if cancel_event and cancel_event.is_set():
+                return
+
+            await self.async_play_audio(audio_path, sample_rate, cancel_event)
+        finally:
+            if audio_path and os.path.exists(audio_path):
+                try:
+                    await asyncio.to_thread(os.remove, audio_path)
+                    logger.debug(f"Cleaned up temporary file: {audio_path}")
+                except OSError as e:
+                    logger.warning(f"Failed to remove temporary file {audio_path}: {e}")
+
+    async def async_play_audio(
+        self,
+        audio_path: str,
+        sample_rate: int,
+        cancel_event: Optional[threading.Event] = None,
+    ):
+        """
+        Asynchronously play audio on all devices.
+
+        Args:
+            audio_path: Path to audio file
+            sample_rate: Sample rate of the audio
+            cancel_event: Optional threading.Event to signal cancellation
+        """
+        logger.info(f"Starting async playback on {len(self.output_devices)} device(s)")
+        tasks = []
+        for device in self.output_devices:
+            tasks.append(
+                asyncio.to_thread(
+                    self.play_on_device, audio_path, sample_rate, device, cancel_event
+                )
+            )
+        await asyncio.gather(*tasks)
 
     def _apply_speed_adjustment(
         self, audio_data: np.ndarray, speed: float
