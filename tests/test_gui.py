@@ -10,18 +10,40 @@ from gui import TTSApp
 
 @pytest.fixture
 def mock_tts_engines():
-    """Mock TTS engine classes."""
-    with patch("src.engines.say.SayTTSEngine") as mock_say, patch("src.engines.bark.BarkTTSEngine") as mock_bark:
+    """Mock TTS engine classes and registry."""
+    with (
+        patch("src.engines.say.SayTTSEngine") as mock_say,
+        patch("src.engines.bark.BarkTTSEngine") as mock_bark,
+        patch("src.tts_base.TTSEngine.get_registered_engines") as mock_registry,
+    ):
+
+        # Mock class-level attributes
+        mock_say.supports_sample_rate = False
+        mock_bark.supports_sample_rate = True
+
         mock_say_instance = MagicMock()
         mock_say_instance.output_devices = ["Test Device"]
         mock_say_instance.voice = None
+        mock_say_instance.playback_speed = 1.0
+        mock_say_instance.engine_id = "say"
         mock_say.return_value = mock_say_instance
+
+        # Ensure list_available_voices is mocked on the class
+        mock_say.list_available_voices.return_value = [("Alex", "en_US", "Test voice")]
 
         mock_bark_instance = MagicMock()
         mock_bark_instance.output_devices = ["Test Device"]
         mock_bark_instance.voice_preset = "v2/en_speaker_6"
         mock_bark_instance.sample_rate = 24000
+        mock_bark_instance.playback_speed = 1.0
+        mock_bark_instance.engine_id = "bark"
         mock_bark.return_value = mock_bark_instance
+
+        # Ensure list_available_voices is mocked on the class
+        mock_bark.list_available_voices.return_value = ["v2/en_speaker_6"]
+
+        # Mock the registry to return our mocks
+        mock_registry.return_value = {"say": mock_say, "bark": mock_bark}
 
         yield mock_say, mock_bark
 
@@ -43,7 +65,9 @@ def test_gui_initialization(mock_tts_engines):
             ]
 
             # Mock list_available_voices for Say
-            with patch("src.engines.say.SayTTSEngine.list_available_voices") as mock_voices:
+            with patch(
+                "src.engines.say.SayTTSEngine.list_available_voices"
+            ) as mock_voices:
                 mock_voices.return_value = [("Alex", "en_US", "Test voice")]
 
                 app = TTSApp(root)
@@ -71,7 +95,9 @@ def test_gui_engine_switching(mock_tts_engines):
                 }
             ]
 
-            with patch("src.engines.say.SayTTSEngine.list_available_voices") as mock_voices:
+            with patch(
+                "src.engines.say.SayTTSEngine.list_available_voices"
+            ) as mock_voices:
                 mock_voices.return_value = [("Alex", "en_US", "Test voice")]
 
                 app = TTSApp(root)
@@ -104,7 +130,9 @@ def test_gui_speak_button_validation(mock_tts_engines):
                 }
             ]
 
-            with patch("src.engines.say.SayTTSEngine.list_available_voices") as mock_voices:
+            with patch(
+                "src.engines.say.SayTTSEngine.list_available_voices"
+            ) as mock_voices:
                 mock_voices.return_value = [("Alex", "en_US", "Test voice")]
 
                 app = TTSApp(root)
@@ -138,7 +166,9 @@ def test_gui_device_validation(mock_tts_engines):
                 }
             ]
 
-            with patch("src.engines.say.SayTTSEngine.list_available_voices") as mock_voices:
+            with patch(
+                "src.engines.say.SayTTSEngine.list_available_voices"
+            ) as mock_voices:
                 mock_voices.return_value = [("Alex", "en_US", "Test voice")]
 
                 app = TTSApp(root)
@@ -172,7 +202,9 @@ def test_gui_clear_button(mock_tts_engines):
                 }
             ]
 
-            with patch("src.engines.say.SayTTSEngine.list_available_voices") as mock_voices:
+            with patch(
+                "src.engines.say.SayTTSEngine.list_available_voices"
+            ) as mock_voices:
                 mock_voices.return_value = [("Alex", "en_US", "Test voice")]
 
                 app = TTSApp(root)
@@ -208,7 +240,9 @@ def test_gui_playback_speed_change(mock_tts_engines):
                 }
             ]
 
-            with patch("src.engines.say.SayTTSEngine.list_available_voices") as mock_voices:
+            with patch(
+                "src.engines.say.SayTTSEngine.list_available_voices"
+            ) as mock_voices:
                 mock_voices.return_value = [("Alex", "en_US", "Test voice")]
 
                 app = TTSApp(root)
@@ -279,7 +313,9 @@ def test_gui_device_refresh(mock_tts_engines):
                 }
             ]
 
-            with patch("gui.SayTTSEngine.list_available_voices") as mock_voices:
+            with patch(
+                "src.engines.say.SayTTSEngine.list_available_voices"
+            ) as mock_voices:
                 mock_voices.return_value = [("Alex", "en_US", "Test voice")]
 
                 app = TTSApp(root)
@@ -332,21 +368,23 @@ def test_gui_sample_rate_visibility(mock_tts_engines):
                 }
             ]
 
-            with patch("src.engines.say.SayTTSEngine.list_available_voices") as mock_voices:
+            with patch(
+                "src.engines.say.SayTTSEngine.list_available_voices"
+            ) as mock_voices:
                 mock_voices.return_value = [("Alex", "en_US", "Test voice")]
 
                 app = TTSApp(root)
 
                 # Say engine should hide sample rate
                 assert app.engine_var.get() == "say"
-                # Note: grid_info() returns empty dict if widget is hidden with grid_remove()
-                assert not app.sample_rate_combo.grid_info()
+                # Check if visible - winfo_viewable() is more reliable than grid_info()
+                # but might not work in all test environments. Let's check pack_info
+                # since the GUI uses pack() for this.
+                assert not app.sample_rate_frame.winfo_ismapped()
 
                 # Switch to Bark - sample rate should be visible
                 app.engine_var.set("bark")
                 app._on_engine_change()
-                assert (
-                    app.sample_rate_combo.grid_info()
-                )  # Should have grid info when visible
+                assert app.sample_rate_frame.winfo_ismapped()
     finally:
         root.destroy()
