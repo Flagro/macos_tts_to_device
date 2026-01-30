@@ -27,6 +27,10 @@ class ConcreteTTSEngine(TTSEngine):
         return "Test Engine"
 
     @staticmethod
+    def list_available_voices() -> list[str]:
+        return ["Voice 1", "Voice 2"]
+
+    @staticmethod
     def print_available_voices():
         print("Test Voice 1")
         print("Test Voice 2")
