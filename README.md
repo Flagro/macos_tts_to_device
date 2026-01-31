@@ -9,9 +9,10 @@ A Python utility for routing text-to-speech (TTS) audio to specific output devic
 - 🎯 **Device Selection**: Route TTS to any audio output device by name
 - 🖥️ **Dual Interface**: Use either CLI or minimalistic GUI
 - 🔊 **Multiple Device Output**: Play audio simultaneously on multiple devices (CLI only)
-- 🎤 **Two TTS Engines**:
+- 🎤 **Three TTS Engines**:
   - **macOS `say`**: Fast, built-in macOS TTS with multiple voice options
   - **Bark AI**: Natural-sounding AI-generated speech with realistic prosody
+  - **Piper**: Fast, local neural TTS with many voice models available
 - ⚡ **Playback Speed Control**: Adjust playback speed from 0.5x (half speed) to 2.0x (double speed)
 - 🔄 **Interactive Modes**: CLI for typing or GUI for visual control
 - 🧹 **Auto-cleanup**: Temporary audio files are automatically removed
@@ -42,7 +43,13 @@ git clone <repository-url>
 cd macos_tts_to_device
 ```
 
-2. Install dependencies:
+2. Install in editable mode (recommended for developers):
+
+```bash
+uv pip install -e .[all]
+```
+
+3. Or install normally:
 
 **For macOS `say` engine only (lightweight)**:
 
@@ -54,6 +61,12 @@ uv pip install .
 
 ```bash
 uv pip install .[bark]
+```
+
+**For Piper TTS support**:
+
+```bash
+uv pip install .[piper]
 ```
 
 **Or install everything**:
@@ -93,9 +106,15 @@ Launch the minimalistic Tkinter GUI:
 python gui.py
 ```
 
+Or if installed:
+
+```bash
+macos-tts-gui
+```
+
 **GUI Features**:
 - 🎨 Clean, minimalistic interface
-- 🔘 Radio buttons to switch between Say and Bark engines
+- 🔘 Radio buttons to switch between Say, Bark, and Piper engines
 - ✏️ Text input field for device name (e.g., "BlackHole 16ch")
 - 🎤 Optional voice/speaker selection
 - ⚡ Playback speed slider (0.5x - 2.0x)
@@ -126,6 +145,12 @@ python cli.py --engine say --devices "BlackHole 16ch"
 
 ```bash
 python cli.py --engine bark --devices "External Headphones"
+```
+
+**Using Piper (Fast & Local Neural)**:
+
+```bash
+python cli.py --engine piper --devices "BlackHole 16ch" --model "en_US-lessac-medium.onnx"
 ```
 
 #### Multiple Device Output
