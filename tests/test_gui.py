@@ -377,14 +377,13 @@ def test_gui_sample_rate_visibility(mock_tts_engines):
 
                 # Say engine should hide sample rate
                 assert app.engine_var.get() == "say"
-                # Check if visible - winfo_viewable() is more reliable than grid_info()
-                # but might not work in all test environments. Let's check pack_info
-                # since the GUI uses pack() for this.
-                assert not app.sample_rate_frame.winfo_ismapped()
+                # Check if visible - winfo_manager() is reliable in headless tests
+                # to check if a widget is currently packed/gridded.
+                assert app.sample_rate_frame.winfo_manager() == ""
 
                 # Switch to Bark - sample rate should be visible
                 app.engine_var.set("bark")
                 app._on_engine_change()
-                assert app.sample_rate_frame.winfo_ismapped()
+                assert app.sample_rate_frame.winfo_manager() == "pack"
     finally:
         root.destroy()
