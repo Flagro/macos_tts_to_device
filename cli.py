@@ -11,6 +11,7 @@ import logging
 import click
 
 from src import TTSEngine, ProfileManager
+from src.utils import setup_logging
 import settings
 
 # The engines are automatically loaded when importing from src
@@ -162,15 +163,7 @@ def main(
       python main.py --engine say --devices "BlackHole 16ch" --log-level DEBUG
     """
     # Configure logging
-    if verbose:
-        log_level = "INFO"
-
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        format=settings.LOG_FORMAT,
-        datefmt=settings.LOG_DATE_FORMAT,
-    )
-
+    setup_logging(level=log_level, verbose=verbose)
     logger = logging.getLogger(__name__)
 
     # Load profile if specified

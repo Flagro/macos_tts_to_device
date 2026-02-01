@@ -12,18 +12,14 @@ import asyncio
 from datetime import datetime
 import tkinter as tk
 from tkinter import ttk, scrolledtext
-from typing import Optional, Union, Any
+from typing import Optional, Any
 
 from src import TTSEngine, ProfileManager, HistoryManager
+from src.utils import setup_logging
 import settings
 
 # Configure logging
-logging.basicConfig(
-    level=getattr(logging, settings.LOG_LEVEL),
-    format=settings.LOG_FORMAT,
-    datefmt=settings.LOG_DATE_FORMAT,
-)
-
+setup_logging()
 logger = logging.getLogger(__name__)
 
 # Constants
@@ -51,16 +47,9 @@ class TTSApp:
         # Available engines
         self.engines: dict[str, dict[str, Any]] = {}
         for engine_id, engine_class in TTSEngine.get_registered_engines().items():
-            # Try to get metadata from engine class if possible, fallback to settings
-            # We'll instantiate a temporary engine or use class properties if we had them
-            # For now, we'll keep using settings for display names to minimize refactoring
-            # but we can improve this later.
-            display_name = settings.ENGINE_METADATA.get(engine_id, {}).get(
-                "name", engine_id.capitalize()
-            )
             self.engines[engine_id] = {
                 "class": engine_class,
-                "name": display_name,
+                "name": engine_class.display_name,
             }
 
         # Available audio devices
@@ -652,6 +641,13 @@ class TTSApp:
                 # Set default if current value is not valid for Say
                 current_voice = self.voice_var.get()
                 if not current_voice or current_voice.startswith("v2/"):
+                    self.voice_var.set(DEFAULT_VOICE_OPTION)
+            elif engine_type == "piper":
+                self.available_voices = [DEFAULT_VOICE_OPTION] + voices
+
+                # Set default if current value is not valid for Piper
+                current_voice = self.voice_var.get()
+                if not current_voice or not current_voice.endswith(".onnx"):
                     self.voice_var.set(DEFAULT_VOICE_OPTION)
             else:
                 # Generic handling for future engines
