@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 class BarkTTSEngine(TTSEngine):
     """TTS engine using Suno's Bark AI model."""
 
+    display_name = "Bark AI (Natural)"
+    supports_sample_rate = True
+
     def __init__(
         self,
         output_devices: list[str],

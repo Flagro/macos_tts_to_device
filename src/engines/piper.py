@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 class PiperTTSEngine(TTSEngine):
     """TTS engine using Piper (fast, local neural TTS)."""
 
+    display_name = "Piper TTS (Fast & Local)"
     supports_sample_rate = False
 
     def __init__(

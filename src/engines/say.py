@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 class SayTTSEngine(TTSEngine):
     """TTS engine using macOS built-in 'say' command."""
 
+    display_name = "macOS Say (Fast)"
+    supports_sample_rate = False
+
     def __init__(
         self,
         output_devices: list[str],
