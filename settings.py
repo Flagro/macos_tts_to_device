@@ -40,22 +40,6 @@ VOICE_HELP_BARK = "Select a Bark voice preset - try different speakers for varie
 VOICE_HELP_PIPER = "Select a Piper model file (.onnx) from the models/piper directory"
 VOICE_PREVIEW_TEXT = "Hello, this is a preview of the selected voice."
 
-# Engine Metadata
-ENGINE_METADATA = {
-    "say": {
-        "name": "macOS Say (Fast)",
-        "supports_sample_rate": False,
-    },
-    "bark": {
-        "name": "Bark AI (Natural)",
-        "supports_sample_rate": True,
-    },
-    "piper": {
-        "name": "Piper TTS (Fast & Local)",
-        "supports_sample_rate": False,
-    },
-}
-
 # Piper Configuration
 PIPER_MODEL_PATH = "en_US-lessac-medium.onnx"  # Default model path
 PIPER_VOICES_DIR = "models/piper"  # Directory to store piper models

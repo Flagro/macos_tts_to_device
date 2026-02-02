@@ -44,6 +44,9 @@ class TTSEngine(ABC):
             raise ValueError(f"Engine '{engine_id}' not found in registry.")
         return cls._registry[engine_id]
 
+    display_name: str = "Base TTS Engine"
+    supports_sample_rate: bool = False
+
     def __init__(
         self,
         output_devices: list[str],
