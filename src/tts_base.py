@@ -13,6 +13,8 @@ import sounddevice as sd
 import soundfile as sf
 from scipy import signal
 
+import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,6 +46,73 @@ class TTSEngine(ABC):
             raise ValueError(f"Engine '{engine_id}' not found in registry.")
         return cls._registry[engine_id]
 
+    @classmethod
+    def list_engines(cls):
+        """Print a list of all registered engines and their descriptions."""
+        print(f"\nAvailable TTS Engines ({len(cls._registry)} total):")
+        print("-" * 60)
+        for engine_id, engine_class in cls._registry.items():
+            print(f"  {engine_id:<10} {engine_class.display_name}")
+        print("-" * 60)
+
+    @classmethod
+    def resolve_device(cls, device_name_or_index: Any) -> Any:
+        """
+        Resolve a device name or index to a valid sounddevice device.
+
+        Args:
+            device_name_or_index: Name (str), partial name (str), or index (int)
+
+        Returns:
+            The resolved device name or index that sounddevice can use.
+            Returns the input if no better match is found.
+        """
+        try:
+            # If it's already an index, just return it
+            if isinstance(device_name_or_index, int):
+                return device_name_or_index
+
+            # If it's a string that looks like an index
+            if isinstance(device_name_or_index, str) and device_name_or_index.isdigit():
+                return int(device_name_or_index)
+
+            # Otherwise, try to find a matching name
+            devices = sd.query_devices()
+
+            # Try exact match first
+            for i, dev in enumerate(devices):
+                if (
+                    dev["name"] == device_name_or_index
+                    and dev["max_output_channels"] > 0
+                ):
+                    return device_name_or_index
+
+            # Try partial match (case-insensitive)
+            search_name = str(device_name_or_index).lower()
+            for i, dev in enumerate(devices):
+                if (
+                    search_name in dev["name"].lower()
+                    and dev["max_output_channels"] > 0
+                ):
+                    logger.info(f"Resolved '{device_name_or_index}' to '{dev['name']}'")
+                    return dev["name"]
+
+            # If no match found and it was the default device from settings, try to find ANY output device
+            if device_name_or_index == settings.PREFERRED_DEFAULT_DEVICE:
+                # Try to get the system default output device
+                default_device = sd.default.device[1]  # index 1 is output
+                if default_device >= 0:
+                    dev_info = sd.query_devices(default_device)
+                    logger.info(
+                        f"Default device '{device_name_or_index}' not found. Using system default: '{dev_info['name']}'"
+                    )
+                    return dev_info["name"]
+
+            return device_name_or_index
+        except Exception as e:
+            logger.warning(f"Failed to resolve device '{device_name_or_index}': {e}")
+            return device_name_or_index
+
     display_name: str = "Base TTS Engine"
     supports_sample_rate: bool = False
 
@@ -61,7 +130,8 @@ class TTSEngine(ABC):
             tmp_dir: Directory for temporary audio files (default: tts_tmp/)
             playback_speed: Playback speed multiplier (0.5-2.0, default: 1.0)
         """
-        self.output_devices = output_devices
+        # Resolve all devices
+        self.output_devices = [self.resolve_device(d) for d in output_devices]
         self.playback_speed = max(0.5, min(2.0, playback_speed))  # Clamp to range
 
         if tmp_dir is None:
@@ -96,8 +166,6 @@ class TTSEngine(ABC):
     def get_engine_name(self) -> str:
         """Return the name of the TTS engine."""
         pass
-
-    supports_sample_rate: bool = False
 
     @staticmethod
     @abstractmethod
