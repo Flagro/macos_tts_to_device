@@ -106,6 +106,11 @@ profile_manager = ProfileManager()
     help="List all available voices for the selected engine and exit.",
 )
 @click.option(
+    "--list-engines",
+    is_flag=True,
+    help="List all available TTS engines and exit.",
+)
+@click.option(
     "--list-devices",
     is_flag=True,
     help="List all available audio output devices and exit.",
@@ -122,6 +127,7 @@ def main(
     verbose,
     text,
     list_voices,
+    list_engines,
     list_devices,
     model,
     profile,
@@ -191,6 +197,15 @@ def main(
     if not engine_class:
         click.echo(f"Unknown engine: {engine}", err=True)
         sys.exit(1)
+
+    # Handle --list-engines flag
+    if list_engines:
+        try:
+            TTSEngine.list_engines()
+            sys.exit(0)
+        except Exception as e:
+            click.echo(f"Error listing engines: {e}", err=True)
+            sys.exit(1)
 
     # Handle --list-voices flag
     if list_voices:
