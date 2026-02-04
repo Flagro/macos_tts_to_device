@@ -147,6 +147,10 @@ class TTSApp:
             profile_frame, text="Save", command=self._on_profile_save, width=8
         ).pack(side=tk.LEFT, padx=(5, 0))
 
+        ttk.Button(
+            profile_frame, text="Delete", command=self._on_profile_delete, width=8
+        ).pack(side=tk.LEFT, padx=(5, 0))
+
         # ===== Engine Selection =====
         ttk.Label(main_frame, text="Engine:").grid(row=1, column=0, sticky=tk.W, pady=5)
 
@@ -397,6 +401,25 @@ class TTSApp:
             self._set_status(f"Saved profile: {name}")
         else:
             messagebox.showerror("Error", f"Failed to save profile '{name}'")
+
+    def _on_profile_delete(self) -> None:
+        """Delete the currently selected profile."""
+        from tkinter import messagebox
+
+        name = self.profile_var.get()
+        if not name:
+            messagebox.showinfo("Delete Profile", "Please select a profile to delete.")
+            return
+
+        if messagebox.askyesno(
+            "Delete Profile", f"Are you sure you want to delete profile '{name}'?"
+        ):
+            if self.profile_manager.delete_profile(name):
+                self._refresh_profile_list()
+                self.profile_var.set("")
+                self._set_status(f"Deleted profile: {name}")
+            else:
+                messagebox.showerror("Error", f"Failed to delete profile '{name}'")
 
     def _create_history_widgets(self, parent: ttk.Frame) -> None:
         """Create widgets for the history tab."""
