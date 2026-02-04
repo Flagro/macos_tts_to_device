@@ -20,7 +20,11 @@ class ProfileManager:
             return {}
         try:
             with open(self.profiles_file, "r") as f:
-                return json.load(f)
+                data = json.load(f)
+                return data if isinstance(data, dict) else {}
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"Profiles file corrupted: {e}. Starting fresh.")
+            return {}
         except Exception as e:
             logger.error(f"Failed to load profiles: {e}")
             return {}

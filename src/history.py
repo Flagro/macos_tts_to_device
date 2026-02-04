@@ -22,7 +22,11 @@ class HistoryManager:
             return []
         try:
             with open(self.history_file, "r") as f:
-                return json.load(f)
+                data = json.load(f)
+                return data if isinstance(data, list) else []
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"History file corrupted: {e}. Starting fresh.")
+            return []
         except Exception as e:
             logger.error(f"Failed to load history: {e}")
             return []
