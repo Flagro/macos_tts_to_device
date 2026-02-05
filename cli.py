@@ -81,6 +81,13 @@ profile_manager = ProfileManager()
     help="Playback speed multiplier (0.5 = half speed, 2.0 = double speed).",
 )
 @click.option(
+    "--volume",
+    type=float,
+    default=settings.DEFAULT_VOLUME,
+    show_default=True,
+    help="Volume multiplier (0.0 = silent, 1.0 = full volume).",
+)
+@click.option(
     "--log-level",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"], case_sensitive=False),
     default=settings.LOG_LEVEL,
@@ -123,6 +130,7 @@ def main(
     speaker,
     sample_rate,
     playback_speed,
+    volume,
     log_level,
     verbose,
     text,
@@ -253,17 +261,20 @@ def main(
             "voice": voice,
             "timeout": timeout,
             "playback_speed": playback_speed,
+            "volume": volume,
         },
         "bark": {
             "output_devices": devices,
             "voice_preset": speaker,
             "sample_rate": sample_rate,
             "playback_speed": playback_speed,
+            "volume": volume,
         },
         "piper": {
             "output_devices": devices,
             "model_path": model,
             "playback_speed": playback_speed,
+            "volume": volume,
         },
     }
 
@@ -303,11 +314,45 @@ def main(
             click.echo(f"Error processing text: {e}", err=True)
             sys.exit(1)
 
+    # Check if stdin is being piped
+    if not sys.stdin.isatty():
+        piped_text = sys.stdin.read().strip()
+        if piped_text:
+            try:
+                tts_engine.process_text(piped_text)
+                sys.exit(0)
+            except Exception as e:
+                click.echo(f"Error processing piped text: {e}", err=True)
+                sys.exit(1)
+        else:
+            sys.exit(0)
+
     # Otherwise, enter interactive mode
+    click.echo("Interactive mode enabled. Type your text and press Enter.")
+    click.echo("Special commands: /help, /list-voices, /exit")
     try:
         while True:
             text = input("> ").strip()
             if not text:
+                continue
+
+            if text == "/exit" or text == "/quit":
+                break
+            elif text == "/help":
+                click.echo("Special commands:")
+                click.echo("  /help         Show this help message")
+                click.echo("  /list-voices  List available voices for current engine")
+                click.echo("  /clear        Clear the history file")
+                click.echo("  /exit, /quit  Exit the program")
+                continue
+            elif text == "/clear":
+                from src import HistoryManager
+
+                HistoryManager().clear_history()
+                click.echo("History cleared.")
+                continue
+            elif text == "/list-voices":
+                engine_class.print_available_voices()
                 continue
 
             try:
