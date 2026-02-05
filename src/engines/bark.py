@@ -25,6 +25,7 @@ class BarkTTSEngine(TTSEngine):
         sample_rate: int = 24000,
         tmp_dir: Optional[str] = None,
         playback_speed: float = 1.0,
+        volume: float = 1.0,
     ):
         """
         Initialize the Bark TTS engine.
@@ -35,8 +36,9 @@ class BarkTTSEngine(TTSEngine):
             sample_rate: Sample rate for audio output (default: 24000)
             tmp_dir: Directory for temporary audio files
             playback_speed: Playback speed multiplier (0.5-2.0, default: 1.0)
+            volume: Volume multiplier (0.0-1.0, default: 1.0)
         """
-        super().__init__(output_devices, tmp_dir, playback_speed)
+        super().__init__(output_devices, tmp_dir, playback_speed, volume)
 
         # Validate voice preset
         if voice_preset not in BARK_VOICES:
@@ -71,6 +73,7 @@ class BarkTTSEngine(TTSEngine):
     def generate_audio(self, text: str) -> tuple[str, int]:
         """
         Generate audio using Bark AI.
+        Handles long text by splitting it into smaller chunks.
 
         Args:
             text: Text to convert to speech
@@ -85,8 +88,22 @@ class BarkTTSEngine(TTSEngine):
         logger.debug(f"Generating Bark audio with preset '{self.voice_preset}'")
 
         try:
-            # Generate Bark audio (float32 numpy array)
-            audio = generate_audio(text, history_prompt=self.voice_preset)
+            # Simple text splitting by sentence or length to avoid Bark's context limits
+            # Bark works best with ~14 seconds of audio at a time
+            chunks = self._split_text(text)
+            all_audio = []
+
+            for i, chunk in enumerate(chunks):
+                logger.info(f"Generating Bark chunk {i+1}/{len(chunks)}: '{chunk[:30]}...'")
+                audio_chunk = generate_audio(chunk, history_prompt=self.voice_preset)
+                all_audio.append(audio_chunk)
+
+            # Concatenate all chunks
+            if len(all_audio) > 1:
+                audio = np.concatenate(all_audio)
+            else:
+                audio = all_audio[0]
+
             logger.info(f"Bark audio generation completed")
 
             # Ensure correct shape for soundfile (Nx1)
@@ -102,6 +119,53 @@ class BarkTTSEngine(TTSEngine):
         except Exception as e:
             logger.error(f"Failed to generate Bark audio: {e}", exc_info=True)
             raise RuntimeError(f"Failed to generate Bark audio: {e}") from e
+
+    def _split_text(self, text: str, max_length: int = 150) -> list[str]:
+        """
+        Split text into smaller chunks for Bark.
+        
+        Args:
+            text: Input text
+            max_length: Maximum approximate characters per chunk
+            
+        Returns:
+            List of text chunks
+        """
+        if len(text) <= max_length:
+            return [text]
+
+        # Try to split by sentence-like punctuation
+        import re
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        
+        chunks = []
+        current_chunk = ""
+        
+        for sentence in sentences:
+            if len(current_chunk) + len(sentence) <= max_length:
+                current_chunk += (sentence + " ")
+            else:
+                if current_chunk:
+                    chunks.append(current_chunk.strip())
+                
+                # If a single sentence is still too long, split by words
+                if len(sentence) > max_length:
+                    words = sentence.split()
+                    sub_chunk = ""
+                    for word in words:
+                        if len(sub_chunk) + len(word) <= max_length:
+                            sub_chunk += (word + " ")
+                        else:
+                            chunks.append(sub_chunk.strip())
+                            sub_chunk = word + " "
+                    current_chunk = sub_chunk
+                else:
+                    current_chunk = sentence + " "
+        
+        if current_chunk:
+            chunks.append(current_chunk.strip())
+            
+        return chunks
 
     def get_engine_name(self) -> str:
         """Return the name of the TTS engine."""

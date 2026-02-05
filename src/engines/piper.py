@@ -24,6 +24,7 @@ class PiperTTSEngine(TTSEngine):
         model_path: Optional[str] = None,
         tmp_dir: Optional[str] = None,
         playback_speed: float = 1.0,
+        volume: float = 1.0,
     ):
         """
         Initialize the Piper TTS engine.
@@ -33,8 +34,9 @@ class PiperTTSEngine(TTSEngine):
             model_path: Path to the .onnx model file
             tmp_dir: Directory for temporary audio files
             playback_speed: Playback speed multiplier (0.5-2.0, default: 1.0)
+            volume: Volume multiplier (0.0-1.0, default: 1.0)
         """
-        super().__init__(output_devices, tmp_dir, playback_speed)
+        super().__init__(output_devices, tmp_dir, playback_speed, volume)
 
         self.model_path = model_path or settings.PIPER_MODEL_PATH
         self.voice = None
