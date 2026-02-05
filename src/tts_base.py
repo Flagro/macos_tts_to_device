@@ -121,6 +121,7 @@ class TTSEngine(ABC):
         output_devices: list[str],
         tmp_dir: Optional[str] = None,
         playback_speed: float = 1.0,
+        volume: float = 1.0,
     ):
         """
         Initialize the TTS engine.
@@ -129,10 +130,12 @@ class TTSEngine(ABC):
             output_devices: List of output device names or IDs
             tmp_dir: Directory for temporary audio files (default: tts_tmp/)
             playback_speed: Playback speed multiplier (0.5-2.0, default: 1.0)
+            volume: Volume multiplier (0.0-1.0, default: 1.0)
         """
         # Resolve all devices
         self.output_devices = [self.resolve_device(d) for d in output_devices]
         self.playback_speed = max(0.5, min(2.0, playback_speed))  # Clamp to range
+        self.volume = max(0.0, min(1.0, volume))  # Clamp to range
 
         if tmp_dir is None:
             script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -295,6 +298,11 @@ class TTSEngine(ABC):
 
             logger.debug(f"Reading audio file for device '{device_name}': {audio_path}")
             data, sr = sf.read(audio_path, dtype="float32", always_2d=True)
+
+            # Apply volume adjustment
+            if self.volume != 1.0:
+                data = data * self.volume
+                logger.debug(f"Applied volume adjustment: {self.volume}x")
 
             # Apply playback speed adjustment if needed
             if self.playback_speed != 1.0:
