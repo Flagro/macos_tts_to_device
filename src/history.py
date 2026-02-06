@@ -38,6 +38,7 @@ class HistoryManager:
         voice: str,
         speed: float,
         devices: List[str],
+        volume: float = 1.0,
         sample_rate: Optional[str] = None,
     ) -> None:
         """Add a new entry to the history."""
@@ -47,6 +48,7 @@ class HistoryManager:
             "engine": engine_id,
             "voice": voice,
             "speed": speed,
+            "volume": volume,
             "devices": devices,
             "sample_rate": sample_rate,
         }

@@ -94,7 +94,9 @@ class BarkTTSEngine(TTSEngine):
             all_audio = []
 
             for i, chunk in enumerate(chunks):
-                logger.info(f"Generating Bark chunk {i+1}/{len(chunks)}: '{chunk[:30]}...'")
+                logger.info(
+                    f"Generating Bark chunk {i+1}/{len(chunks)}: '{chunk[:30]}...'"
+                )
                 audio_chunk = generate_audio(chunk, history_prompt=self.voice_preset)
                 all_audio.append(audio_chunk)
 
@@ -123,11 +125,11 @@ class BarkTTSEngine(TTSEngine):
     def _split_text(self, text: str, max_length: int = 150) -> list[str]:
         """
         Split text into smaller chunks for Bark.
-        
+
         Args:
             text: Input text
             max_length: Maximum approximate characters per chunk
-            
+
         Returns:
             List of text chunks
         """
@@ -136,35 +138,36 @@ class BarkTTSEngine(TTSEngine):
 
         # Try to split by sentence-like punctuation
         import re
-        sentences = re.split(r'(?<=[.!?])\s+', text)
-        
+
+        sentences = re.split(r"(?<=[.!?])\s+", text)
+
         chunks = []
         current_chunk = ""
-        
+
         for sentence in sentences:
             if len(current_chunk) + len(sentence) <= max_length:
-                current_chunk += (sentence + " ")
+                current_chunk += sentence + " "
             else:
                 if current_chunk:
                     chunks.append(current_chunk.strip())
-                
+
                 # If a single sentence is still too long, split by words
                 if len(sentence) > max_length:
                     words = sentence.split()
                     sub_chunk = ""
                     for word in words:
                         if len(sub_chunk) + len(word) <= max_length:
-                            sub_chunk += (word + " ")
+                            sub_chunk += word + " "
                         else:
                             chunks.append(sub_chunk.strip())
                             sub_chunk = word + " "
                     current_chunk = sub_chunk
                 else:
                     current_chunk = sentence + " "
-        
+
         if current_chunk:
             chunks.append(current_chunk.strip())
-            
+
         return chunks
 
     def get_engine_name(self) -> str:
