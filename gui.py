@@ -67,6 +67,10 @@ class TTSApp:
         self.playback_speed_scale: ttk.Scale
         self.playback_speed_label: ttk.Label
         self.playback_speed_value_label: ttk.Label
+        self.volume_var: tk.DoubleVar
+        self.volume_scale: ttk.Scale
+        self.volume_label: ttk.Label
+        self.volume_value_label: ttk.Label
         self.voice_var: tk.StringVar
         self.voice_help: ttk.Label
         self.voice_combo: ttk.Combobox
@@ -229,13 +233,34 @@ class TTSApp:
         )
         self.playback_speed_value_label.pack(side=tk.LEFT, padx=(5, 0))
 
+        # ===== Volume Control =====
+        self.volume_label = ttk.Label(main_frame, text="Volume:")
+        self.volume_label.grid(row=4, column=0, sticky=tk.W, pady=5)
+
+        volume_frame = ttk.Frame(main_frame)
+        volume_frame.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
+
+        self.volume_var = tk.DoubleVar(value=settings.DEFAULT_VOLUME)
+        self.volume_scale = ttk.Scale(
+            volume_frame,
+            from_=0.0,
+            to=1.0,
+            variable=self.volume_var,
+            orient=tk.HORIZONTAL,
+            command=self._on_volume_change,
+        )
+        self.volume_scale.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        self.volume_value_label = ttk.Label(volume_frame, text="100%", width=6)
+        self.volume_value_label.pack(side=tk.LEFT, padx=(5, 0))
+
         # ===== Voice Selection (Engine-specific) =====
         ttk.Label(main_frame, text="Voice/Speaker:").grid(
-            row=4, column=0, sticky=tk.W, pady=5
+            row=5, column=0, sticky=tk.W, pady=5
         )
 
         voice_frame = ttk.Frame(main_frame)
-        voice_frame.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
+        voice_frame.grid(row=5, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
 
         self.voice_var = tk.StringVar(value=settings.DEFAULT_SAY_VOICE)
         self.voice_combo = ttk.Combobox(
@@ -257,11 +282,11 @@ class TTSApp:
             font=("", settings.HELP_TEXT_FONT_SIZE),
             foreground="gray",
         )
-        self.voice_help.grid(row=5, column=1, sticky=tk.W, padx=5)
+        self.voice_help.grid(row=6, column=1, sticky=tk.W, padx=5)
 
         # ===== Text Input =====
         ttk.Label(main_frame, text="Text to Speak:").grid(
-            row=6, column=0, sticky=(tk.W, tk.N), pady=5
+            row=7, column=0, sticky=(tk.W, tk.N), pady=5
         )
 
         self.text_input = scrolledtext.ScrolledText(
@@ -272,7 +297,7 @@ class TTSApp:
             font=("", settings.TEXT_INPUT_FONT_SIZE),
         )
         self.text_input.grid(
-            row=6, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5, padx=5
+            row=7, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5, padx=5
         )
         self.text_input.focus()
 
@@ -283,7 +308,7 @@ class TTSApp:
 
         # ===== Buttons =====
         button_frame: ttk.Frame = ttk.Frame(main_frame)
-        button_frame.grid(row=7, column=0, columnspan=2, pady=10)
+        button_frame.grid(row=8, column=0, columnspan=2, pady=10)
 
         self.speak_button = ttk.Button(
             button_frame,
@@ -313,7 +338,7 @@ class TTSApp:
             length=300,
         )
         self.progress_bar.grid(
-            row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0), padx=10
+            row=9, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0), padx=10
         )
         self.progress_bar.grid_remove()  # Hidden by default
 
@@ -326,7 +351,7 @@ class TTSApp:
             anchor=tk.W,
             padding=(5, 2),
         )
-        status_bar.grid(row=9, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        status_bar.grid(row=10, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
 
     def _refresh_profile_list(self) -> None:
         """Update the profile combobox with current profile names."""
@@ -358,6 +383,11 @@ class TTSApp:
             speed = profile.get("speed", settings.DEFAULT_PLAYBACK_SPEED)
             self.playback_speed_var.set(speed)
             self._on_playback_speed_change(str(speed))
+
+            # Set volume
+            volume = profile.get("volume", 1.0)
+            self.volume_var.set(volume)
+            self._on_volume_change(str(volume))
 
             # Set sample rate if applicable
             sample_rate = profile.get("sample_rate")
@@ -391,6 +421,7 @@ class TTSApp:
             "engine": self.engine_var.get(),
             "voice": self.voice_var.get(),
             "speed": self.playback_speed_var.get(),
+            "volume": self.volume_var.get(),
             "sample_rate": self.sample_rate_var.get(),
             "devices": self._get_selected_devices(),
         }
@@ -512,6 +543,11 @@ class TTSApp:
             speed = entry.get("speed", settings.DEFAULT_PLAYBACK_SPEED)
             self.playback_speed_var.set(speed)
             self._on_playback_speed_change(str(speed))
+
+            # Set volume
+            volume = entry.get("volume", 1.0)
+            self.volume_var.set(volume)
+            self._on_volume_change(str(volume))
 
             # Set sample rate
             sample_rate = entry.get("sample_rate")
@@ -722,6 +758,11 @@ class TTSApp:
         speed = float(value)
         self.playback_speed_value_label.config(text=f"{speed:.1f}x")
 
+    def _on_volume_change(self, value: str) -> None:
+        """Handle volume slider change."""
+        volume = float(value)
+        self.volume_value_label.config(text=f"{int(volume * 100)}%")
+
     def _update_engine(self) -> None:
         """Recreate the TTS engine with current settings."""
         engine_type: str = self.engine_var.get()
@@ -729,6 +770,7 @@ class TTSApp:
         voice: str = self.voice_var.get().strip()
         sample_rate: int = int(self.sample_rate_var.get())
         playback_speed: float = self.playback_speed_var.get()
+        volume: float = self.volume_var.get()
 
         if not selected_devices:
             self._set_status("Error: Please select at least one output device")
@@ -747,6 +789,7 @@ class TTSApp:
                     voice=voice_to_use,
                     timeout=settings.SAY_ENGINE_TIMEOUT,
                     playback_speed=playback_speed,
+                    volume=volume,
                 )
             elif engine_type == ENGINE_BARK:
                 # Handle "Default" option (use default Bark speaker)
@@ -760,6 +803,7 @@ class TTSApp:
                     voice_preset=voice_to_use,
                     sample_rate=sample_rate,
                     playback_speed=playback_speed,
+                    volume=volume,
                 )
             elif engine_type == "piper":
                 # Handle "Default" option
@@ -772,6 +816,7 @@ class TTSApp:
                     output_devices=selected_devices,
                     model_path=voice_to_use,
                     playback_speed=playback_speed,
+                    volume=volume,
                 )
             else:
                 raise ValueError(f"Unknown engine type: {engine_type}")
@@ -784,8 +829,9 @@ class TTSApp:
             speed_info: str = (
                 f" @ {playback_speed:.1f}x" if playback_speed != 1.0 else ""
             )
+            vol_info: str = f" (Vol: {int(volume*100)}%)" if volume != 1.0 else ""
             self._set_status(
-                f"Ready - Using {engine_name} ({device_count_str}){speed_info}"
+                f"Ready - Using {engine_name} ({device_count_str}){speed_info}{vol_info}"
             )
 
         except ImportError as e:
@@ -881,7 +927,11 @@ class TTSApp:
             # Check if playback speed changed
             if self.tts_engine:
                 current_speed = self.playback_speed_var.get()
-                if abs(self.tts_engine.playback_speed - current_speed) > 0.01:
+                current_volume = self.volume_var.get()
+                if (
+                    abs(self.tts_engine.playback_speed - current_speed) > 0.01
+                    or abs(self.tts_engine.volume - current_volume) > 0.01
+                ):
                     needs_reinit = True
 
             if needs_reinit:
@@ -955,6 +1005,7 @@ class TTSApp:
                     engine_id=self.engine_var.get(),
                     voice=self.voice_var.get(),
                     speed=self.playback_speed_var.get(),
+                    volume=self.volume_var.get(),
                     devices=self._get_selected_devices(),
                     sample_rate=(
                         self.sample_rate_var.get()
