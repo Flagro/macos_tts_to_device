@@ -361,13 +361,21 @@ class TTSEngine(ABC):
             thread.join()
         logger.info("All devices finished playback")
 
-    def process_text(self, text: str, cancel_event: Optional[threading.Event] = None):
+    def process_text(
+        self,
+        text: str,
+        cancel_event: Optional[threading.Event] = None,
+        output_path: Optional[str] = None,
+        play_audio: bool = True,
+    ):
         """
-        Process text input: generate audio and play it on all devices.
+        Process text input: generate audio and optionally play/save it.
 
         Args:
             text: Text to convert to speech
             cancel_event: Optional threading.Event to signal cancellation
+            output_path: Optional path to save the generated audio file
+            play_audio: Whether to play the audio on configured devices
         """
         audio_path = None
         logger.info(f"Processing text: '{text[:50]}{'...' if len(text) > 50 else ''}'")
@@ -384,7 +392,17 @@ class TTSEngine(ABC):
                 logger.info("Text processing cancelled after audio generation")
                 return
 
-            self.play_audio(audio_path, sample_rate, cancel_event)
+            # Save to output path if provided
+            if output_path:
+                import shutil
+
+                shutil.copy2(audio_path, output_path)
+                logger.info(f"Exported audio to: {output_path}")
+
+            # Play audio if requested
+            if play_audio:
+                self.play_audio(audio_path, sample_rate, cancel_event)
+
         finally:
             if audio_path and os.path.exists(audio_path):
                 try:
@@ -394,7 +412,11 @@ class TTSEngine(ABC):
                     logger.warning(f"Failed to remove temporary file {audio_path}: {e}")
 
     async def async_process_text(
-        self, text: str, cancel_event: Optional[threading.Event] = None
+        self,
+        text: str,
+        cancel_event: Optional[threading.Event] = None,
+        output_path: Optional[str] = None,
+        play_audio: bool = True,
     ):
         """
         Asynchronously process text input.
@@ -402,6 +424,8 @@ class TTSEngine(ABC):
         Args:
             text: Text to convert to speech
             cancel_event: Optional threading.Event to signal cancellation
+            output_path: Optional path to save the generated audio file
+            play_audio: Whether to play the audio on configured devices
         """
         audio_path = None
         logger.info(
@@ -417,7 +441,16 @@ class TTSEngine(ABC):
             if cancel_event and cancel_event.is_set():
                 return
 
-            await self.async_play_audio(audio_path, sample_rate, cancel_event)
+            # Save to output path if provided
+            if output_path:
+                import shutil
+
+                await asyncio.to_thread(shutil.copy2, audio_path, output_path)
+                logger.info(f"Exported audio to: {output_path}")
+
+            # Play audio if requested
+            if play_audio:
+                await self.async_play_audio(audio_path, sample_rate, cancel_event)
         finally:
             if audio_path and os.path.exists(audio_path):
                 try:
