@@ -11,7 +11,7 @@ import threading
 import asyncio
 from datetime import datetime
 import tkinter as tk
-from tkinter import ttk, scrolledtext
+from tkinter import ttk, scrolledtext, filedialog
 from typing import Optional, Any
 
 from src import TTSEngine, ProfileManager, HistoryManager
@@ -75,6 +75,7 @@ class TTSApp:
         self.voice_help: ttk.Label
         self.voice_combo: ttk.Combobox
         self.preview_button: ttk.Button
+        self.voice_name_to_id: dict[str, str] = {}
         self.available_voices: list[str] = []
         self.text_input: scrolledtext.ScrolledText
         self.speak_button: ttk.Button
@@ -318,6 +319,13 @@ class TTSApp:
         )
         self.speak_button.pack(side=tk.LEFT, padx=5)
 
+        ttk.Button(
+            button_frame,
+            text="Export to File",
+            command=self._on_export,
+            width=15,
+        ).pack(side=tk.LEFT, padx=5)
+
         self.stop_button = ttk.Button(
             button_frame,
             text="⏹ Stop",
@@ -375,9 +383,15 @@ class TTSApp:
                 self._on_engine_change()
 
             # Set voice
-            voice = profile.get("voice")
-            if voice:
-                self.voice_var.set(voice)
+            voice_id = profile.get("voice")
+            if voice_id:
+                # Find the display name for this ID
+                display_name = voice_id
+                for name, vid in self.voice_name_to_id.items():
+                    if vid == voice_id:
+                        display_name = name
+                        break
+                self.voice_var.set(display_name)
 
             # Set speed
             speed = profile.get("speed", settings.DEFAULT_PLAYBACK_SPEED)
@@ -417,9 +431,12 @@ class TTSApp:
         if not name:
             return
 
+        voice_name = self.voice_var.get()
+        voice_id = self.voice_name_to_id.get(voice_name, voice_name)
+
         settings_dict = {
             "engine": self.engine_var.get(),
-            "voice": self.voice_var.get(),
+            "voice": voice_id,
             "speed": self.playback_speed_var.get(),
             "volume": self.volume_var.get(),
             "sample_rate": self.sample_rate_var.get(),
@@ -535,9 +552,15 @@ class TTSApp:
                 self._on_engine_change()
 
             # Set voice
-            voice = entry.get("voice")
-            if voice:
-                self.voice_var.set(voice)
+            voice_id = entry.get("voice")
+            if voice_id:
+                # Find the display name for this ID
+                display_name = voice_id
+                for name, vid in self.voice_name_to_id.items():
+                    if vid == voice_id:
+                        display_name = name
+                        break
+                self.voice_var.set(display_name)
 
             # Set speed
             speed = entry.get("speed", settings.DEFAULT_PLAYBACK_SPEED)
@@ -678,45 +701,51 @@ class TTSApp:
         engine_class = self.engines[engine_type]["class"]
 
         try:
-            voices = engine_class.list_available_voices()
+            voice_list = engine_class.list_available_voices()
 
-            # Format voices for the combobox
-            if engine_type == ENGINE_BARK:
-                self.available_voices = [DEFAULT_VOICE_OPTION] + list(voices)
+            # Reset mapping
+            self.voice_name_to_id = {DEFAULT_VOICE_OPTION: DEFAULT_VOICE_OPTION}
+            self.available_voices = [DEFAULT_VOICE_OPTION]
 
-                # Set default if current value is not valid for Bark
-                current_voice = self.voice_var.get()
-                if (
-                    not current_voice
-                    or current_voice == DEFAULT_VOICE_OPTION
-                    or not current_voice.startswith("v2/")
-                ):
-                    self.voice_var.set(settings.DEFAULT_BARK_SPEAKER)
-            elif engine_type == ENGINE_SAY:
-                self.available_voices = [DEFAULT_VOICE_OPTION] + [
-                    v[0] if isinstance(v, (list, tuple)) else v for v in voices
-                ]
+            # Populate mapping and names
+            for v in voice_list:
+                if isinstance(v, dict):
+                    v_id = v["id"]
+                    v_name = v["name"]
+                else:
+                    # Fallback for any engine not returning dicts yet
+                    v_id = v
+                    v_name = v
 
-                # Set default if current value is not valid for Say
-                current_voice = self.voice_var.get()
-                if not current_voice or current_voice.startswith("v2/"):
-                    self.voice_var.set(DEFAULT_VOICE_OPTION)
-            elif engine_type == "piper":
-                self.available_voices = [DEFAULT_VOICE_OPTION] + voices
-
-                # Set default if current value is not valid for Piper
-                current_voice = self.voice_var.get()
-                if not current_voice or not current_voice.endswith(".onnx"):
-                    self.voice_var.set(DEFAULT_VOICE_OPTION)
-            else:
-                # Generic handling for future engines
-                self.available_voices = [DEFAULT_VOICE_OPTION] + [
-                    v[0] if isinstance(v, (list, tuple)) else v for v in voices
-                ]
-                self.voice_var.set(DEFAULT_VOICE_OPTION)
+                self.voice_name_to_id[v_name] = v_id
+                self.available_voices.append(v_name)
 
             # Update combobox values
             self.voice_combo["values"] = self.available_voices
+
+            # Try to restore current voice if it exists in the new list, or set default
+            current_voice_name = self.voice_var.get()
+            if current_voice_name not in self.available_voices:
+                if engine_type == ENGINE_BARK:
+                    # Look for the default speaker by ID
+                    default_id = settings.DEFAULT_BARK_SPEAKER
+                    default_name = DEFAULT_VOICE_OPTION
+                    for name, vid in self.voice_name_to_id.items():
+                        if vid == default_id:
+                            default_name = name
+                            break
+                    self.voice_var.set(default_name)
+                else:
+                    self.voice_var.set(DEFAULT_VOICE_OPTION)
+
+        except Exception as e:
+            logger.error(
+                f"Failed to load voices for engine '{engine_type}': {e}", exc_info=True
+            )
+            self.available_voices = [DEFAULT_VOICE_OPTION]
+            self.voice_name_to_id = {DEFAULT_VOICE_OPTION: DEFAULT_VOICE_OPTION}
+            self.voice_combo["values"] = self.available_voices
+            self.voice_var.set(DEFAULT_VOICE_OPTION)
 
         except Exception as e:
             logger.error(
@@ -767,7 +796,8 @@ class TTSApp:
         """Recreate the TTS engine with current settings."""
         engine_type: str = self.engine_var.get()
         selected_devices: list[str] = self._get_selected_devices()
-        voice: str = self.voice_var.get().strip()
+        voice_name: str = self.voice_var.get().strip()
+        voice_id: str = self.voice_name_to_id.get(voice_name, voice_name)
         sample_rate: int = int(self.sample_rate_var.get())
         playback_speed: float = self.playback_speed_var.get()
         volume: float = self.volume_var.get()
@@ -783,7 +813,7 @@ class TTSApp:
 
             if engine_type == ENGINE_SAY:
                 # Handle "Default" option (use system default voice)
-                voice_to_use = None if voice == DEFAULT_VOICE_OPTION else voice
+                voice_to_use = None if voice_id == DEFAULT_VOICE_OPTION else voice_id
                 self.tts_engine = engine_class(
                     output_devices=selected_devices,
                     voice=voice_to_use,
@@ -795,8 +825,8 @@ class TTSApp:
                 # Handle "Default" option (use default Bark speaker)
                 voice_to_use = (
                     settings.DEFAULT_BARK_SPEAKER
-                    if voice == DEFAULT_VOICE_OPTION
-                    else voice
+                    if voice_id == DEFAULT_VOICE_OPTION
+                    else voice_id
                 )
                 self.tts_engine = engine_class(
                     output_devices=selected_devices,
@@ -809,8 +839,8 @@ class TTSApp:
                 # Handle "Default" option
                 voice_to_use = (
                     settings.PIPER_MODEL_PATH
-                    if voice == DEFAULT_VOICE_OPTION
-                    else os.path.join(settings.PIPER_VOICES_DIR, voice)
+                    if voice_id == DEFAULT_VOICE_OPTION
+                    else os.path.join(settings.PIPER_VOICES_DIR, voice_id)
                 )
                 self.tts_engine = engine_class(
                     output_devices=selected_devices,
@@ -886,7 +916,8 @@ class TTSApp:
                 return
 
             # Update engine if settings changed
-            voice: str = self.voice_var.get().strip()
+            voice_name: str = self.voice_var.get().strip()
+            voice_id: str = self.voice_name_to_id.get(voice_name, voice_name)
 
             # Check if we need to reinitialize
             needs_reinit = False
@@ -897,7 +928,7 @@ class TTSApp:
                 needs_reinit = True
             elif getattr(self.tts_engine, "engine_id", None) == ENGINE_SAY:
                 # Check if Say voice changed
-                voice_to_check = None if voice == DEFAULT_VOICE_OPTION else voice
+                voice_to_check = None if voice_id == DEFAULT_VOICE_OPTION else voice_id
                 if getattr(self.tts_engine, "voice", None) != voice_to_check:
                     needs_reinit = True
             elif getattr(self.tts_engine, "engine_id", None) == ENGINE_BARK:
@@ -905,8 +936,8 @@ class TTSApp:
                 current_sample_rate = int(self.sample_rate_var.get())
                 voice_to_check = (
                     settings.DEFAULT_BARK_SPEAKER
-                    if voice == DEFAULT_VOICE_OPTION
-                    else voice
+                    if voice_id == DEFAULT_VOICE_OPTION
+                    else voice_id
                 )
                 if (
                     getattr(self.tts_engine, "voice_preset", None) != voice_to_check
@@ -918,8 +949,8 @@ class TTSApp:
                 # Check if Piper model changed
                 voice_to_check = (
                     settings.PIPER_MODEL_PATH
-                    if voice == DEFAULT_VOICE_OPTION
-                    else os.path.join(settings.PIPER_VOICES_DIR, voice)
+                    if voice_id == DEFAULT_VOICE_OPTION
+                    else os.path.join(settings.PIPER_VOICES_DIR, voice_id)
                 )
                 if getattr(self.tts_engine, "model_path", None) != voice_to_check:
                     needs_reinit = True
@@ -944,13 +975,52 @@ class TTSApp:
             self.stop_button.config(state="normal")
 
             # Speak asynchronously
-            asyncio.run_coroutine_threadsafe(self._speak_async(text), self.loop)
+            asyncio.run_coroutine_threadsafe(
+                self._speak_async(text, output_path=None, play_audio=True), self.loop
+            )
         except Exception as e:
             # If any error occurs before task starts, reset processing flag
             logger.error(f"Error in _on_speak before task start: {e}", exc_info=True)
             with self.processing_lock:
                 self.is_processing = False
             raise
+
+    def _on_export(self) -> None:
+        """Handle export button click."""
+        text = self.text_input.get("1.0", tk.END).strip()
+        if not text:
+            self._set_status("Please enter some text")
+            return
+
+        # Determine file extension based on engine
+        engine_type = self.engine_var.get()
+        ext = "aiff" if engine_type == ENGINE_SAY else "wav"
+
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=f".{ext}",
+            filetypes=[(f"{ext.upper()} files", f"*.{ext}"), ("All files", "*.*")],
+            title="Export Audio",
+            initialfile=f"speech_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}",
+        )
+
+        if not file_path:
+            return
+
+        # Check and set processing flag
+        with self.processing_lock:
+            if self.is_processing:
+                self._set_status("Already processing...")
+                return
+            self.is_processing = True
+
+        self.cancel_event.clear()
+        self.speak_button.config(state="disabled")
+        self.stop_button.config(state="normal")
+
+        # Process asynchronously (with play_audio=False)
+        asyncio.run_coroutine_threadsafe(
+            self._speak_async(text, output_path=file_path, play_audio=False), self.loop
+        )
 
     def _on_preview(self) -> None:
         """Handle preview button click."""
@@ -967,7 +1037,9 @@ class TTSApp:
         self._set_status("Stopping...")
         logger.info("Stop requested by user")
 
-    async def _speak_async(self, text: str) -> None:
+    async def _speak_async(
+        self, text: str, output_path: Optional[str] = None, play_audio: bool = True
+    ) -> None:
         """Speak text asynchronously."""
         # Show progress bar if using Bark
         engine_id = getattr(self.tts_engine, "engine_id", None)
@@ -982,7 +1054,14 @@ class TTSApp:
                 ),
             )
         else:
-            self.root.after(0, lambda: self._set_status("Generating speech..."))
+            self.root.after(
+                0,
+                lambda: self._set_status(
+                    "Exporting speech..."
+                    if output_path and not play_audio
+                    else "Generating speech..."
+                ),
+            )
 
         try:
             if self.tts_engine is None:
@@ -992,18 +1071,31 @@ class TTSApp:
                 return
 
             # Use the new async method
-            await self.tts_engine.async_process_text(text, self.cancel_event)
+            await self.tts_engine.async_process_text(
+                text, self.cancel_event, output_path=output_path, play_audio=play_audio
+            )
 
             # Check if cancelled
             if self.cancel_event.is_set():
                 self.root.after(0, lambda: self._set_status("Stopped"))
             else:
-                self.root.after(0, lambda: self._set_status("Playback complete"))
-                # Record in history
+                if output_path and not play_audio:
+                    self.root.after(
+                        0,
+                        lambda: self._set_status(
+                            f"Exported to {os.path.basename(output_path)}"
+                        ),
+                    )
+                else:
+                    self.root.after(0, lambda: self._set_status("Playback complete"))
+
+                # Record in history (only if we actually played or if it's a significant action)
+                voice_name = self.voice_var.get()
+                voice_id = self.voice_name_to_id.get(voice_name, voice_name)
                 self.history_manager.add_entry(
                     text=text,
                     engine_id=self.engine_var.get(),
-                    voice=self.voice_var.get(),
+                    voice=voice_id,
                     speed=self.playback_speed_var.get(),
                     volume=self.volume_var.get(),
                     devices=self._get_selected_devices(),

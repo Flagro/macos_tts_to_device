@@ -226,5 +226,5 @@ class BarkTTSEngine(TTSEngine):
 
     @staticmethod
     def list_available_voices():
-        """Return a list of all available Bark voice presets."""
-        return list(BARK_VOICES.keys())
+        """Return a list of all available Bark voice presets with descriptions."""
+        return [{"id": k, "name": v} for k, v in BARK_VOICES.items()]

@@ -117,13 +117,12 @@ class SayTTSEngine(TTSEngine):
             print("Voice: Default")
 
     @staticmethod
-    def list_available_voices() -> list[tuple[str, str, str]]:
+    def list_available_voices() -> list[dict[str, str]]:
         """
         Get a list of available voices from the 'say' command.
 
         Returns:
-            List of tuples containing (voice_name, language_code, description)
-            For example: [("Alex", "en_US", "Alex Most people recognize me by my voice."), ...]
+            List of dictionaries containing {"id": voice_name, "name": display_name}
         """
         try:
             result = subprocess.run(
@@ -137,22 +136,16 @@ class SayTTSEngine(TTSEngine):
             for line in result.stdout.strip().split("\n"):
                 if line.strip():
                     # Format: "VoiceName    language_CODE    # Description"
-                    # Example: "Alex             en_US    # Most people recognize me by my voice."
                     parts = line.split("#", 1)
-                    if len(parts) == 2:
-                        voice_info = parts[0].strip().split()
-                        if len(voice_info) >= 2:
-                            voice_name = voice_info[0]
-                            language_code = voice_info[1]
-                            description = parts[1].strip()
-                            voices.append((voice_name, language_code, description))
-                    else:
-                        # Some voices may not have a description
-                        voice_info = line.strip().split()
-                        if len(voice_info) >= 2:
-                            voice_name = voice_info[0]
-                            language_code = voice_info[1]
-                            voices.append((voice_name, language_code, ""))
+                    voice_info = parts[0].strip().split()
+                    if len(voice_info) >= 2:
+                        voice_name = voice_info[0]
+                        lang = voice_info[1]
+                        desc = parts[1].strip() if len(parts) == 2 else ""
+                        display_name = f"{voice_name} ({lang})"
+                        if desc:
+                            display_name += f" - {desc}"
+                        voices.append({"id": voice_name, "name": display_name})
             logger.info(f"Found {len(voices)} available voices")
             return voices
         except subprocess.TimeoutExpired as e:

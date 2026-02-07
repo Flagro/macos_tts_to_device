@@ -108,6 +108,18 @@ profile_manager = ProfileManager()
     help="Text to speak. If provided, speaks the text and exits. Otherwise, enters interactive mode.",
 )
 @click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    default=None,
+    help="Path to save the generated audio file (e.g., speech.wav).",
+)
+@click.option(
+    "--no-play",
+    is_flag=True,
+    help="Do not play the audio on configured devices (useful with --output).",
+)
+@click.option(
     "--list-voices",
     is_flag=True,
     help="List all available voices for the selected engine and exit.",
@@ -134,6 +146,8 @@ def main(
     log_level,
     verbose,
     text,
+    output,
+    no_play,
     list_voices,
     list_engines,
     list_devices,
@@ -308,7 +322,7 @@ def main(
     # If text is provided via CLI, process it and exit
     if text:
         try:
-            tts_engine.process_text(text)
+            tts_engine.process_text(text, output_path=output, play_audio=not no_play)
             sys.exit(0)
         except Exception as e:
             click.echo(f"Error processing text: {e}", err=True)
@@ -319,7 +333,7 @@ def main(
         piped_text = sys.stdin.read().strip()
         if piped_text:
             try:
-                tts_engine.process_text(piped_text)
+                tts_engine.process_text(piped_text, output_path=output, play_audio=not no_play)
                 sys.exit(0)
             except Exception as e:
                 click.echo(f"Error processing piped text: {e}", err=True)
@@ -329,6 +343,8 @@ def main(
 
     # Otherwise, enter interactive mode
     click.echo("Interactive mode enabled. Type your text and press Enter.")
+    if output:
+        click.echo(f"Exporting all speech to: {output}")
     click.echo("Special commands: /help, /list-voices, /exit")
     try:
         while True:
@@ -356,7 +372,7 @@ def main(
                 continue
 
             try:
-                tts_engine.process_text(text)
+                tts_engine.process_text(text, output_path=output, play_audio=not no_play)
             except KeyboardInterrupt:
                 raise
             except Exception as e:

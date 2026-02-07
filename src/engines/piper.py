@@ -108,7 +108,7 @@ class PiperTTSEngine(TTSEngine):
         print(f"Piper Model: {os.path.basename(self.model_path)}")
 
     @staticmethod
-    def list_available_voices() -> list[str]:
+    def list_available_voices() -> list[dict[str, str]]:
         """
         List available Piper models in the models directory.
         """
@@ -117,7 +117,7 @@ class PiperTTSEngine(TTSEngine):
             return []
 
         models = [f for f in os.listdir(voices_dir) if f.endswith(".onnx")]
-        return sorted(models)
+        return [{"id": m, "name": m} for m in sorted(models)]
 
     @staticmethod
     def print_available_voices():
