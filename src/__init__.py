@@ -4,6 +4,7 @@ from .tts_base import TTSEngine
 from .engines import load_engines
 from .profiles import ProfileManager
 from .history import HistoryManager
+from .manager import TTSManager
 
 # Pre-load engines so they are registered when src is imported
 load_engines()
@@ -27,4 +28,5 @@ __all__ = [
     "BarkTTSEngine",
     "ProfileManager",
     "HistoryManager",
+    "TTSManager",
 ]
