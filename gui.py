@@ -7,14 +7,12 @@ A minimalistic Tkinter-based GUI for routing text-to-speech audio to specific de
 
 import logging
 import os
-import threading
-import asyncio
 from datetime import datetime
 import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog
 from typing import Optional, Any
 
-from src import TTSEngine, ProfileManager, HistoryManager
+from src import TTSEngine, TTSManager
 from src.utils import setup_logging
 import settings
 
@@ -37,14 +35,17 @@ class TTSApp:
         self.root.geometry(f"{settings.WINDOW_WIDTH}x{settings.WINDOW_HEIGHT}")
         self.root.resizable(True, True)
 
-        # State
-        self.tts_engine: Optional[TTSEngine] = None
-        self.is_processing: bool = False
-        self.processing_lock: threading.Lock = threading.Lock()
-        self.cancel_event: threading.Event = threading.Event()
+        # Manager for orchestration
+        self.manager = TTSManager()
+        self.manager.on_status_change = self._set_status
+        self.manager.on_processing_start = self._on_processing_start
+        self.manager.on_processing_end = self._on_processing_end
+        self.manager.on_history_update = self._refresh_history_list
+
+        # State for UI
         self.current_engine_type: str = settings.DEFAULT_ENGINE
 
-        # Available engines
+        # Available engines (for UI selection)
         self.engines: dict[str, dict[str, Any]] = {}
         for engine_id, engine_class in TTSEngine.get_registered_engines().items():
             self.engines[engine_id] = {
@@ -57,43 +58,9 @@ class TTSApp:
         self.device_vars: dict[str, tk.BooleanVar] = {}  # Device name -> BooleanVar
 
         # UI Elements (will be initialized in _create_widgets)
-        self.engine_var: tk.StringVar
-        self.device_frame: ttk.Frame
-        self.device_checkboxes: list[ttk.Checkbutton] = []
-        self.sample_rate_var: tk.StringVar
-        self.sample_rate_combo: ttk.Combobox
-        self.sample_rate_label: ttk.Label
-        self.playback_speed_var: tk.DoubleVar
-        self.playback_speed_scale: ttk.Scale
-        self.playback_speed_label: ttk.Label
-        self.playback_speed_value_label: ttk.Label
-        self.volume_var: tk.DoubleVar
-        self.volume_scale: ttk.Scale
-        self.volume_label: ttk.Label
-        self.volume_value_label: ttk.Label
-        self.voice_var: tk.StringVar
-        self.voice_help: ttk.Label
-        self.voice_combo: ttk.Combobox
-        self.preview_button: ttk.Button
+        # ... (rest of element definitions remain same for clarity)
         self.voice_name_to_id: dict[str, str] = {}
         self.available_voices: list[str] = []
-        self.text_input: scrolledtext.ScrolledText
-        self.speak_button: ttk.Button
-        self.stop_button: ttk.Button
-        self.status_var: tk.StringVar
-        self.progress_bar: ttk.Progressbar
-
-        # Profile management
-        self.profile_manager = ProfileManager()
-        self.profile_var: tk.StringVar
-
-        # History management
-        self.history_manager = HistoryManager()
-        self.history_listbox: Optional[tk.Listbox] = None
-
-        # Asyncio loop for background tasks
-        self.loop = asyncio.new_event_loop()
-        threading.Thread(target=self._run_async_loop, daemon=True).start()
 
         # Create UI
         self._create_widgets()
@@ -101,6 +68,23 @@ class TTSApp:
         self._load_voices_for_engine()  # Load voices for initial engine
         self._update_ui_for_engine()  # Hide/show elements based on initial engine
         self._initialize_default_engine()
+
+    def _on_processing_start(self) -> None:
+        """Handle processing start (UI updates)."""
+        engine_id = self.engine_var.get()
+        if engine_id == ENGINE_BARK:
+            self.root.after(0, self._show_progress)
+
+        self.root.after(0, lambda: self.speak_button.config(state="disabled"))
+        self.root.after(0, lambda: self.preview_button.config(state="disabled"))
+        self.root.after(0, lambda: self.stop_button.config(state="normal"))
+
+    def _on_processing_end(self) -> None:
+        """Handle processing end (UI updates)."""
+        self.root.after(0, self._hide_progress)
+        self.root.after(0, lambda: self.speak_button.config(state="normal"))
+        self.root.after(0, lambda: self.preview_button.config(state="normal"))
+        self.root.after(0, lambda: self.stop_button.config(state="disabled"))
 
     def _create_widgets(self) -> None:
         """Create all UI widgets."""
@@ -363,7 +347,7 @@ class TTSApp:
 
     def _refresh_profile_list(self) -> None:
         """Update the profile combobox with current profile names."""
-        profiles = self.profile_manager.list_profiles()
+        profiles = self.manager.profile_manager.list_profiles()
         self.profile_combo["values"] = profiles
         if not self.profile_var.get() and profiles:
             self.profile_combo.set("")
@@ -371,7 +355,7 @@ class TTSApp:
     def _on_profile_select(self, event: Optional[tk.Event] = None) -> None:
         """Load settings from the selected profile."""
         name = self.profile_var.get()
-        profile = self.profile_manager.get_profile(name)
+        profile = self.manager.profile_manager.get_profile(name)
         if not profile:
             return
 
@@ -443,7 +427,7 @@ class TTSApp:
             "devices": self._get_selected_devices(),
         }
 
-        if self.profile_manager.save_profile(name, settings_dict):
+        if self.manager.profile_manager.save_profile(name, settings_dict):
             self._refresh_profile_list()
             self.profile_var.set(name)
             self._set_status(f"Saved profile: {name}")
@@ -462,7 +446,7 @@ class TTSApp:
         if messagebox.askyesno(
             "Delete Profile", f"Are you sure you want to delete profile '{name}'?"
         ):
-            if self.profile_manager.delete_profile(name):
+            if self.manager.profile_manager.delete_profile(name):
                 self._refresh_profile_list()
                 self.profile_var.set("")
                 self._set_status(f"Deleted profile: {name}")
@@ -522,7 +506,7 @@ class TTSApp:
             return
 
         self.history_listbox.delete(0, tk.END)
-        for entry in self.history_manager.get_history():
+        for entry in self.manager.history_manager.get_history():
             # Format: [Timestamp] Engine: Text...
             ts = datetime.fromisoformat(entry["timestamp"]).strftime("%H:%M:%S")
             text_preview = entry["text"].replace("\n", " ")[:40]
@@ -538,7 +522,7 @@ class TTSApp:
             return
 
         index = selection[0]
-        entry = self.history_manager.get_history()[index]
+        entry = self.manager.history_manager.get_history()[index]
 
         try:
             # Set text
@@ -608,7 +592,7 @@ class TTSApp:
         if messagebox.askyesno(
             "Clear History", "Are you sure you want to clear all history?"
         ):
-            self.history_manager.clear_history()
+            self.manager.history_manager.clear_history()
             self._refresh_history_list()
             self._set_status("History cleared")
 
@@ -680,9 +664,9 @@ class TTSApp:
         # If engine is already initialized and selected devices changed, update it
         selected_devices = self._get_selected_devices()
         if (
-            self.tts_engine
+            self.manager.tts_engine
             and selected_devices
-            and set(self.tts_engine.output_devices) != set(selected_devices)
+            and set(self.manager.tts_engine.output_devices) != set(selected_devices)
         ):
             self._update_engine()
 
@@ -793,197 +777,38 @@ class TTSApp:
         self.volume_value_label.config(text=f"{int(volume * 100)}%")
 
     def _update_engine(self) -> None:
-        """Recreate the TTS engine with current settings."""
-        engine_type: str = self.engine_var.get()
-        selected_devices: list[str] = self._get_selected_devices()
+        """Update the TTS engine in the manager."""
         voice_name: str = self.voice_var.get().strip()
         voice_id: str = self.voice_name_to_id.get(voice_name, voice_name)
-        sample_rate: int = int(self.sample_rate_var.get())
-        playback_speed: float = self.playback_speed_var.get()
-        volume: float = self.volume_var.get()
 
-        if not selected_devices:
-            self._set_status("Error: Please select at least one output device")
-            return
-
-        try:
-            self._set_status("Initializing engine...")
-
-            engine_class: type[TTSEngine] = self.engines[engine_type]["class"]
-
-            if engine_type == ENGINE_SAY:
-                # Handle "Default" option (use system default voice)
-                voice_to_use = None if voice_id == DEFAULT_VOICE_OPTION else voice_id
-                self.tts_engine = engine_class(
-                    output_devices=selected_devices,
-                    voice=voice_to_use,
-                    timeout=settings.SAY_ENGINE_TIMEOUT,
-                    playback_speed=playback_speed,
-                    volume=volume,
-                )
-            elif engine_type == ENGINE_BARK:
-                # Handle "Default" option (use default Bark speaker)
-                voice_to_use = (
-                    settings.DEFAULT_BARK_SPEAKER
-                    if voice_id == DEFAULT_VOICE_OPTION
-                    else voice_id
-                )
-                self.tts_engine = engine_class(
-                    output_devices=selected_devices,
-                    voice_preset=voice_to_use,
-                    sample_rate=sample_rate,
-                    playback_speed=playback_speed,
-                    volume=volume,
-                )
-            elif engine_type == "piper":
-                # Handle "Default" option
-                voice_to_use = (
-                    settings.PIPER_MODEL_PATH
-                    if voice_id == DEFAULT_VOICE_OPTION
-                    else os.path.join(settings.PIPER_VOICES_DIR, voice_id)
-                )
-                self.tts_engine = engine_class(
-                    output_devices=selected_devices,
-                    model_path=voice_to_use,
-                    playback_speed=playback_speed,
-                    volume=volume,
-                )
-            else:
-                raise ValueError(f"Unknown engine type: {engine_type}")
-
-            self.current_engine_type = engine_type
-            engine_name: str = self.engines[engine_type]["name"]
-            num_devices = len(selected_devices)
-            plural = "" if num_devices == 1 else "s"
-            device_count_str = f"{num_devices} device{plural}"
-            speed_info: str = (
-                f" @ {playback_speed:.1f}x" if playback_speed != 1.0 else ""
-            )
-            vol_info: str = f" (Vol: {int(volume*100)}%)" if volume != 1.0 else ""
-            self._set_status(
-                f"Ready - Using {engine_name} ({device_count_str}){speed_info}{vol_info}"
-            )
-
-        except ImportError as e:
-            if ENGINE_BARK in str(e).lower() and engine_type != ENGINE_SAY:
-                self._set_status(
-                    "Error: Bark not installed. Install with: uv pip install .[bark]"
-                )
-                # Fall back to say (only if not already using say)
-                self.engine_var.set(ENGINE_SAY)
-                self._update_engine()
-            else:
-                self._set_status(f"Error: {e}")
-                logger.error(f"Failed to import engine: {e}", exc_info=True)
-        except Exception as e:
-            self._set_status(f"Error initializing engine: {e}")
-            logger.error(f"Failed to initialize engine: {e}", exc_info=True)
-
-    def _run_async_loop(self) -> None:
-        """Run the asyncio event loop in a background thread."""
-        asyncio.set_event_loop(self.loop)
-        self.loop.run_forever()
+        self.manager.update_engine(
+            engine_id=self.engine_var.get(),
+            selected_devices=self._get_selected_devices(),
+            voice_id=voice_id,
+            sample_rate=int(self.sample_rate_var.get()),
+            playback_speed=self.playback_speed_var.get(),
+            volume=self.volume_var.get(),
+        )
 
     def _on_speak(self, override_text: Optional[str] = None) -> None:
         """Handle speak button click."""
-        # Check and set processing flag atomically
-        with self.processing_lock:
-            if self.is_processing:
-                self._set_status("Already processing...")
-                return
-            self.is_processing = True
+        text = (
+            override_text
+            if override_text is not None
+            else self.text_input.get("1.0", tk.END).strip()
+        )
+        voice_name = self.voice_var.get().strip()
+        voice_id = self.voice_name_to_id.get(voice_name, voice_name)
 
-        try:
-            # Use override text if provided (for previews), otherwise get from input field
-            text: str = (
-                override_text
-                if override_text is not None
-                else self.text_input.get("1.0", tk.END).strip()
-            )
-
-            if not text:
-                self._set_status("Please enter some text")
-                with self.processing_lock:
-                    self.is_processing = False
-                return
-
-            # Get selected devices
-            selected_devices: list[str] = self._get_selected_devices()
-            if not selected_devices:
-                self._set_status("Error: Please select at least one output device")
-                with self.processing_lock:
-                    self.is_processing = False
-                return
-
-            # Update engine if settings changed
-            voice_name: str = self.voice_var.get().strip()
-            voice_id: str = self.voice_name_to_id.get(voice_name, voice_name)
-
-            # Check if we need to reinitialize
-            needs_reinit = False
-
-            if not self.tts_engine:
-                needs_reinit = True
-            elif set(self.tts_engine.output_devices) != set(selected_devices):
-                needs_reinit = True
-            elif getattr(self.tts_engine, "engine_id", None) == ENGINE_SAY:
-                # Check if Say voice changed
-                voice_to_check = None if voice_id == DEFAULT_VOICE_OPTION else voice_id
-                if getattr(self.tts_engine, "voice", None) != voice_to_check:
-                    needs_reinit = True
-            elif getattr(self.tts_engine, "engine_id", None) == ENGINE_BARK:
-                # Check if Bark settings changed
-                current_sample_rate = int(self.sample_rate_var.get())
-                voice_to_check = (
-                    settings.DEFAULT_BARK_SPEAKER
-                    if voice_id == DEFAULT_VOICE_OPTION
-                    else voice_id
-                )
-                if (
-                    getattr(self.tts_engine, "voice_preset", None) != voice_to_check
-                    or getattr(self.tts_engine, "sample_rate", None)
-                    != current_sample_rate
-                ):
-                    needs_reinit = True
-            elif getattr(self.tts_engine, "engine_id", None) == "piper":
-                # Check if Piper model changed
-                voice_to_check = (
-                    settings.PIPER_MODEL_PATH
-                    if voice_id == DEFAULT_VOICE_OPTION
-                    else os.path.join(settings.PIPER_VOICES_DIR, voice_id)
-                )
-                if getattr(self.tts_engine, "model_path", None) != voice_to_check:
-                    needs_reinit = True
-
-            # Check if playback speed changed
-            if self.tts_engine:
-                current_speed = self.playback_speed_var.get()
-                current_volume = self.volume_var.get()
-                if (
-                    abs(self.tts_engine.playback_speed - current_speed) > 0.01
-                    or abs(self.tts_engine.volume - current_volume) > 0.01
-                ):
-                    needs_reinit = True
-
-            if needs_reinit:
-                self._update_engine()
-
-            # Clear any previous cancel flag and update buttons
-            self.cancel_event.clear()
-            self.speak_button.config(state="disabled")
-            self.preview_button.config(state="disabled")
-            self.stop_button.config(state="normal")
-
-            # Speak asynchronously
-            asyncio.run_coroutine_threadsafe(
-                self._speak_async(text, output_path=None, play_audio=True), self.loop
-            )
-        except Exception as e:
-            # If any error occurs before task starts, reset processing flag
-            logger.error(f"Error in _on_speak before task start: {e}", exc_info=True)
-            with self.processing_lock:
-                self.is_processing = False
-            raise
+        config = {
+            "engine_id": self.engine_var.get(),
+            "selected_devices": self._get_selected_devices(),
+            "voice_id": voice_id,
+            "sample_rate": int(self.sample_rate_var.get()),
+            "playback_speed": self.playback_speed_var.get(),
+            "volume": self.volume_var.get(),
+        }
+        self.manager.speak(text, config)
 
     def _on_export(self) -> None:
         """Handle export button click."""
@@ -992,7 +817,6 @@ class TTSApp:
             self._set_status("Please enter some text")
             return
 
-        # Determine file extension based on engine
         engine_type = self.engine_var.get()
         ext = "aiff" if engine_type == ENGINE_SAY else "wav"
 
@@ -1006,21 +830,18 @@ class TTSApp:
         if not file_path:
             return
 
-        # Check and set processing flag
-        with self.processing_lock:
-            if self.is_processing:
-                self._set_status("Already processing...")
-                return
-            self.is_processing = True
+        voice_name = self.voice_var.get().strip()
+        voice_id = self.voice_name_to_id.get(voice_name, voice_name)
 
-        self.cancel_event.clear()
-        self.speak_button.config(state="disabled")
-        self.stop_button.config(state="normal")
-
-        # Process asynchronously (with play_audio=False)
-        asyncio.run_coroutine_threadsafe(
-            self._speak_async(text, output_path=file_path, play_audio=False), self.loop
-        )
+        config = {
+            "engine_id": engine_type,
+            "selected_devices": self._get_selected_devices(),
+            "voice_id": voice_id,
+            "sample_rate": int(self.sample_rate_var.get()),
+            "playback_speed": self.playback_speed_var.get(),
+            "volume": self.volume_var.get(),
+        }
+        self.manager.export(text, config, file_path)
 
     def _on_preview(self) -> None:
         """Handle preview button click."""
@@ -1028,98 +849,7 @@ class TTSApp:
 
     def _on_stop(self) -> None:
         """Handle stop button click."""
-        with self.processing_lock:
-            if not self.is_processing:
-                return
-
-        # Signal cancellation
-        self.cancel_event.set()
-        self._set_status("Stopping...")
-        logger.info("Stop requested by user")
-
-    async def _speak_async(
-        self, text: str, output_path: Optional[str] = None, play_audio: bool = True
-    ) -> None:
-        """Speak text asynchronously."""
-        # Show progress bar if using Bark
-        engine_id = getattr(self.tts_engine, "engine_id", None)
-        is_bark = engine_id == ENGINE_BARK
-
-        if is_bark:
-            self.root.after(0, lambda: self._show_progress())
-            self.root.after(
-                0,
-                lambda: self._set_status(
-                    "Generating speech with Bark AI (this may take 5-15 seconds)..."
-                ),
-            )
-        else:
-            self.root.after(
-                0,
-                lambda: self._set_status(
-                    "Exporting speech..."
-                    if output_path and not play_audio
-                    else "Generating speech..."
-                ),
-            )
-
-        try:
-            if self.tts_engine is None:
-                self.root.after(
-                    0, lambda: self._set_status("Error: Engine not initialized")
-                )
-                return
-
-            # Use the new async method
-            await self.tts_engine.async_process_text(
-                text, self.cancel_event, output_path=output_path, play_audio=play_audio
-            )
-
-            # Check if cancelled
-            if self.cancel_event.is_set():
-                self.root.after(0, lambda: self._set_status("Stopped"))
-            else:
-                if output_path and not play_audio:
-                    self.root.after(
-                        0,
-                        lambda: self._set_status(
-                            f"Exported to {os.path.basename(output_path)}"
-                        ),
-                    )
-                else:
-                    self.root.after(0, lambda: self._set_status("Playback complete"))
-
-                # Record in history (only if we actually played or if it's a significant action)
-                voice_name = self.voice_var.get()
-                voice_id = self.voice_name_to_id.get(voice_name, voice_name)
-                self.history_manager.add_entry(
-                    text=text,
-                    engine_id=self.engine_var.get(),
-                    voice=voice_id,
-                    speed=self.playback_speed_var.get(),
-                    volume=self.volume_var.get(),
-                    devices=self._get_selected_devices(),
-                    sample_rate=(
-                        self.sample_rate_var.get()
-                        if self.sample_rate_frame.winfo_viewable()
-                        else None
-                    ),
-                )
-                self.root.after(0, lambda: self._refresh_history_list())
-        except Exception as e:
-            error_msg: str = f"Error: {e}"
-            self.root.after(0, lambda: self._set_status(error_msg))
-            logger.error(f"Error during TTS processing: {e}", exc_info=True)
-        finally:
-            # Hide progress bar
-            if is_bark:
-                self.root.after(0, lambda: self._hide_progress())
-
-            with self.processing_lock:
-                self.is_processing = False
-            self.root.after(0, lambda: self.speak_button.config(state="normal"))
-            self.root.after(0, lambda: self.preview_button.config(state="normal"))
-            self.root.after(0, lambda: self.stop_button.config(state="disabled"))
+        self.manager.stop()
 
     def _on_clear(self) -> None:
         """Clear the text input."""
