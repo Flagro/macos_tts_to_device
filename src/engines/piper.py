@@ -131,6 +131,6 @@ class PiperTTSEngine(TTSEngine):
         print(f"\nAvailable Piper Models ({len(models)} total):")
         print("-" * 60)
         for model in models:
-            print(f"  {model}")
+            print(f"  {model['name']}")
         print("-" * 60)
         print(f"Put new models in: {settings.PIPER_VOICES_DIR}")

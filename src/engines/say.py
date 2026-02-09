@@ -165,7 +165,7 @@ class SayTTSEngine(TTSEngine):
         """Print a formatted list of available voices."""
         voices = SayTTSEngine.list_available_voices()
         print(f"\nAvailable voices ({len(voices)} total):\n")
-        print(f"{'Voice Name':<20} {'Language':<10} Description")
-        print("-" * 80)
-        for voice_name, language_code, description in voices:
-            print(f"{voice_name:<20} {language_code:<10} {description}")
+        print(f"{'Voice ID':<20} Display Name")
+        print("-" * 60)
+        for voice in voices:
+            print(f"{voice['id']:<20} {voice['name']}")
