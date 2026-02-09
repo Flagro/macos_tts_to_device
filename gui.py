@@ -58,9 +58,34 @@ class TTSApp:
         self.device_vars: dict[str, tk.BooleanVar] = {}  # Device name -> BooleanVar
 
         # UI Elements (will be initialized in _create_widgets)
-        # ... (rest of element definitions remain same for clarity)
+        self.engine_var: tk.StringVar
+        self.device_frame: ttk.Frame
+        self.device_checkboxes: list[ttk.Checkbutton] = []
+        self.sample_rate_var: tk.StringVar
+        self.sample_rate_combo: ttk.Combobox
+        self.sample_rate_label: ttk.Label
+        self.playback_speed_var: tk.DoubleVar
+        self.playback_speed_scale: ttk.Scale
+        self.playback_speed_label: ttk.Label
+        self.playback_speed_value_label: ttk.Label
+        self.volume_var: tk.DoubleVar
+        self.volume_scale: ttk.Scale
+        self.volume_label: ttk.Label
+        self.volume_value_label: ttk.Label
+        self.voice_var: tk.StringVar
+        self.voice_help: ttk.Label
+        self.voice_combo: ttk.Combobox
+        self.preview_button: ttk.Button
         self.voice_name_to_id: dict[str, str] = {}
         self.available_voices: list[str] = []
+        self.text_input: scrolledtext.ScrolledText
+        self.speak_button: ttk.Button
+        self.stop_button: ttk.Button
+        self.status_var: tk.StringVar
+        self.progress_bar: ttk.Progressbar
+
+        self.profile_var: tk.StringVar
+        self.history_listbox: Optional[tk.Listbox] = None
 
         # Create UI
         self._create_widgets()

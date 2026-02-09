@@ -2,7 +2,6 @@ import asyncio
 import logging
 import threading
 import os
-from datetime import datetime
 from typing import Optional, Any, Callable, List, Dict
 
 from src.tts_base import TTSEngine
@@ -282,8 +281,8 @@ class TTSManager:
                     engine_id=config["engine_id"],
                     voice=config["voice_id"],
                     speed=config["playback_speed"],
-                    volume=config["volume"],
                     devices=config["selected_devices"],
+                    volume=config["volume"],
                     sample_rate=str(config["sample_rate"]) if is_bark else None,
                 )
                 if self.on_history_update:
