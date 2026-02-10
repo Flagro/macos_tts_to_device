@@ -12,15 +12,20 @@ from src.engines.say import SayTTSEngine
 def test_say_engine_initialization():
     """Test Say engine initializes with correct parameters."""
     with tempfile.TemporaryDirectory() as tmp_dir:
-        engine = SayTTSEngine(
-            output_devices=["BlackHole 16ch"],
-            voice="Alex",
-            tmp_dir=tmp_dir,
-            timeout=15,
-        )
-        assert engine.output_devices == ["BlackHole 16ch"]
-        assert engine.voice == "Alex"
-        assert engine.timeout == 15
+        # Mock sounddevice.query_devices to return the requested device
+        with patch("sounddevice.query_devices") as mock_query:
+            mock_query.return_value = [
+                {"name": "BlackHole 16ch", "max_output_channels": 2}
+            ]
+            engine = SayTTSEngine(
+                output_devices=["BlackHole 16ch"],
+                voice="Alex",
+                tmp_dir=tmp_dir,
+                timeout=15,
+            )
+            assert engine.output_devices == ["BlackHole 16ch"]
+            assert engine.voice == "Alex"
+            assert engine.timeout == 15
 
 
 def test_generate_audio_success():
