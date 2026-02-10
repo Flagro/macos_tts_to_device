@@ -57,4 +57,6 @@ def test_cli_speak_text_with_say_engine():
         # Verify engine was initialized
         mock_engine_class.assert_called_once()
         # Verify process_text was called with the text
-        mock_instance.process_text.assert_called_once_with("Hello world")
+        mock_instance.process_text.assert_called_once_with(
+            "Hello world", output_path=None, play_audio=True
+        )
