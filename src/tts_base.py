@@ -122,6 +122,7 @@ class TTSEngine(ABC):
         tmp_dir: Optional[str] = None,
         playback_speed: float = 1.0,
         volume: float = 1.0,
+        voice_id: str = "Default",
     ):
         """
         Initialize the TTS engine.
@@ -131,11 +132,13 @@ class TTSEngine(ABC):
             tmp_dir: Directory for temporary audio files (default: tts_tmp/)
             playback_speed: Playback speed multiplier (0.5-2.0, default: 1.0)
             volume: Volume multiplier (0.0-1.0, default: 1.0)
+            voice_id: The requested voice ID (e.g., "Default" or specific voice)
         """
         # Resolve all devices
         self.output_devices = [self.resolve_device(d) for d in output_devices]
         self.playback_speed = max(0.5, min(2.0, playback_speed))  # Clamp to range
         self.volume = max(0.0, min(1.0, volume))  # Clamp to range
+        self.voice_id = voice_id
 
         if tmp_dir is None:
             script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -151,6 +154,31 @@ class TTSEngine(ABC):
             raise RuntimeError(
                 f"Failed to create temporary directory {self.tmp_dir}: {e}"
             ) from e
+
+    @classmethod
+    @abstractmethod
+    def from_config(cls, config: dict[str, Any]) -> "TTSEngine":
+        """
+        Create an engine instance from a configuration dictionary.
+
+        Args:
+            config: Dictionary containing engine settings:
+                - selected_devices: list[str]
+                - voice_id: str
+                - sample_rate: int
+                - playback_speed: float
+                - volume: float
+                - (optional) tmp_dir: str
+        """
+        pass
+
+    @abstractmethod
+    def get_config(self) -> dict[str, Any]:
+        """
+        Return the current configuration of the engine.
+        Used to determine if re-initialization is needed.
+        """
+        pass
 
     @abstractmethod
     def generate_audio(self, text: str) -> tuple[str, int]:
