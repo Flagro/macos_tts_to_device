@@ -2,7 +2,7 @@
 
 import logging
 import subprocess
-from typing import Optional
+from typing import Optional, Any
 
 import soundfile as sf
 

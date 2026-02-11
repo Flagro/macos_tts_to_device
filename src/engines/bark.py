@@ -3,7 +3,7 @@
 import logging
 import numpy as np
 import soundfile as sf
-from typing import Optional
+from typing import Optional, Any
 
 from ..tts_base import TTSEngine
 from settings import BARK_VOICES

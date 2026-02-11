@@ -3,7 +3,7 @@
 import logging
 import os
 import wave
-from typing import Optional
+from typing import Optional, Any, Dict, List
 
 from ..tts_base import TTSEngine
 import settings
