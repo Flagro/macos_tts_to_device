@@ -65,10 +65,26 @@ class TTSManager:
         Recreate or update the TTS engine with current settings.
         Returns True if successful.
         """
-        if not selected_devices:
+        config = {
+            "engine_id": engine_id,
+            "selected_devices": selected_devices,
+            "voice_id": voice_id,
+            "sample_rate": sample_rate,
+            "playback_speed": playback_speed,
+            "volume": volume,
+        }
+        return self.update_engine_from_config(config)
+
+    def update_engine_from_config(self, config: Dict[str, Any]) -> bool:
+        """
+        Recreate or update the TTS engine from a configuration dictionary.
+        Returns True if successful.
+        """
+        if not config.get("selected_devices"):
             self.set_status("Error: Please select at least one output device")
             return False
 
+        engine_id = config["engine_id"]
         try:
             self.set_status("Initializing engine...")
             engine_registry = TTSEngine.get_registered_engines()
@@ -76,49 +92,17 @@ class TTSManager:
                 raise ValueError(f"Unknown engine type: {engine_id}")
 
             engine_class = engine_registry[engine_id]
-
-            # Normalize voice_id for "Default" options
-            voice_to_use = None
-            if engine_id == "say":
-                voice_to_use = None if voice_id == "Default" else voice_id
-                self.tts_engine = engine_class(
-                    output_devices=selected_devices,
-                    voice=voice_to_use,
-                    timeout=settings.SAY_ENGINE_TIMEOUT,
-                    playback_speed=playback_speed,
-                    volume=volume,
-                )
-            elif engine_id == "bark":
-                voice_to_use = (
-                    settings.DEFAULT_BARK_SPEAKER if voice_id == "Default" else voice_id
-                )
-                self.tts_engine = engine_class(
-                    output_devices=selected_devices,
-                    voice_preset=voice_to_use,
-                    sample_rate=sample_rate,
-                    playback_speed=playback_speed,
-                    volume=volume,
-                )
-            elif engine_id == "piper":
-                voice_to_use = (
-                    settings.PIPER_MODEL_PATH
-                    if voice_id == "Default"
-                    else os.path.join(settings.PIPER_VOICES_DIR, voice_id)
-                )
-                self.tts_engine = engine_class(
-                    output_devices=selected_devices,
-                    model_path=voice_to_use,
-                    playback_speed=playback_speed,
-                    volume=volume,
-                )
-
+            self.tts_engine = engine_class.from_config(config)
             self.current_engine_id = engine_id
 
-            num_devices = len(selected_devices)
+            # Success message
+            num_devices = len(config["selected_devices"])
             plural = "" if num_devices == 1 else "s"
             device_count_str = f"{num_devices} device{plural}"
-            speed_info = f" @ {playback_speed:.1f}x" if playback_speed != 1.0 else ""
-            vol_info = f" (Vol: {int(volume*100)}%)" if volume != 1.0 else ""
+            speed = config["playback_speed"]
+            speed_info = f" @ {speed:.1f}x" if speed != 1.0 else ""
+            volume = config["volume"]
+            vol_info = f" (Vol: {int(volume * 100)}%)" if volume != 1.0 else ""
 
             engine_display_name = getattr(engine_class, "display_name", engine_id)
             self.set_status(
@@ -171,14 +155,7 @@ class TTSManager:
 
         # Ensure engine is up to date with config
         if self._needs_reinit(config):
-            success = self.update_engine(
-                engine_id=config["engine_id"],
-                selected_devices=config["selected_devices"],
-                voice_id=config["voice_id"],
-                sample_rate=config["sample_rate"],
-                playback_speed=config["playback_speed"],
-                volume=config["volume"],
-            )
+            success = self.update_engine_from_config(config)
             if not success:
                 with self.processing_lock:
                     self.is_processing = False
@@ -198,41 +175,24 @@ class TTSManager:
         if not self.tts_engine or self.current_engine_id != config["engine_id"]:
             return True
 
-        if set(self.tts_engine.output_devices) != set(config["selected_devices"]):
+        current_config = self.tts_engine.get_config()
+
+        # Check common parameters
+        if set(current_config["selected_devices"]) != set(config["selected_devices"]):
             return True
 
-        if abs(self.tts_engine.playback_speed - config["playback_speed"]) > 0.01:
+        if abs(current_config["playback_speed"] - config["playback_speed"]) > 0.01:
             return True
 
-        if abs(self.tts_engine.volume - config["volume"]) > 0.01:
+        if abs(current_config["volume"] - config["volume"]) > 0.01:
             return True
 
-        # Engine-specific checks
-        if self.current_engine_id == "say":
-            voice_to_check = (
-                None if config["voice_id"] == "Default" else config["voice_id"]
-            )
-            if getattr(self.tts_engine, "voice", None) != voice_to_check:
-                return True
-        elif self.current_engine_id == "bark":
-            voice_to_check = (
-                settings.DEFAULT_BARK_SPEAKER
-                if config["voice_id"] == "Default"
-                else config["voice_id"]
-            )
-            if (
-                getattr(self.tts_engine, "voice_preset", None) != voice_to_check
-                or getattr(self.tts_engine, "sample_rate", None)
-                != config["sample_rate"]
-            ):
-                return True
-        elif self.current_engine_id == "piper":
-            voice_to_check = (
-                settings.PIPER_MODEL_PATH
-                if config["voice_id"] == "Default"
-                else os.path.join(settings.PIPER_VOICES_DIR, config["voice_id"])
-            )
-            if getattr(self.tts_engine, "model_path", None) != voice_to_check:
+        if current_config["voice_id"] != config["voice_id"]:
+            return True
+
+        # engine specific
+        if config["engine_id"] == "bark":
+            if current_config.get("sample_rate") != config["sample_rate"]:
                 return True
 
         return False
