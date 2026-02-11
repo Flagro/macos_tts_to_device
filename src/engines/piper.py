@@ -25,6 +25,7 @@ class PiperTTSEngine(TTSEngine):
         tmp_dir: Optional[str] = None,
         playback_speed: float = 1.0,
         volume: float = 1.0,
+        voice_id: str = "Default",
     ):
         """
         Initialize the Piper TTS engine.
@@ -35,8 +36,9 @@ class PiperTTSEngine(TTSEngine):
             tmp_dir: Directory for temporary audio files
             playback_speed: Playback speed multiplier (0.5-2.0, default: 1.0)
             volume: Volume multiplier (0.0-1.0, default: 1.0)
+            voice_id: The requested voice ID
         """
-        super().__init__(output_devices, tmp_dir, playback_speed, volume)
+        super().__init__(output_devices, tmp_dir, playback_speed, volume, voice_id)
 
         self.model_path = model_path or settings.PIPER_MODEL_PATH
         self.voice = None
@@ -66,6 +68,39 @@ class PiperTTSEngine(TTSEngine):
         except Exception as e:
             logger.error(f"Failed to load Piper model: {e}", exc_info=True)
             raise RuntimeError(f"Failed to load Piper model: {e}") from e
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any]) -> "PiperTTSEngine":
+        """Create a PiperTTSEngine instance from configuration."""
+        import settings
+
+        voice_id = config.get("voice_id", "Default")
+        # Handle "Default" option
+        voice_to_use = (
+            settings.PIPER_MODEL_PATH
+            if voice_id == "Default"
+            else os.path.join(settings.PIPER_VOICES_DIR, voice_id)
+        )
+
+        return cls(
+            output_devices=config.get("selected_devices", []),
+            model_path=voice_to_use,
+            playback_speed=config.get("playback_speed", 1.0),
+            volume=config.get("volume", 1.0),
+            tmp_dir=config.get("tmp_dir"),
+            voice_id=voice_id,
+        )
+
+    def get_config(self) -> dict[str, Any]:
+        """Return current configuration."""
+        return {
+            "engine_id": "piper",
+            "selected_devices": self.output_devices,
+            "voice_id": self.voice_id,
+            "playback_speed": self.playback_speed,
+            "volume": self.volume,
+            "sample_rate": 0,  # Determined by model
+        }
 
     def generate_audio(self, text: str) -> tuple[str, int]:
         """

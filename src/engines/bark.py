@@ -26,6 +26,7 @@ class BarkTTSEngine(TTSEngine):
         tmp_dir: Optional[str] = None,
         playback_speed: float = 1.0,
         volume: float = 1.0,
+        voice_id: str = "Default",
     ):
         """
         Initialize the Bark TTS engine.
@@ -37,8 +38,9 @@ class BarkTTSEngine(TTSEngine):
             tmp_dir: Directory for temporary audio files
             playback_speed: Playback speed multiplier (0.5-2.0, default: 1.0)
             volume: Volume multiplier (0.0-1.0, default: 1.0)
+            voice_id: The requested voice ID
         """
-        super().__init__(output_devices, tmp_dir, playback_speed, volume)
+        super().__init__(output_devices, tmp_dir, playback_speed, volume, voice_id)
 
         # Validate voice preset
         if voice_preset not in BARK_VOICES:
@@ -69,6 +71,38 @@ class BarkTTSEngine(TTSEngine):
         except Exception as e:
             logger.error(f"Failed to load Bark models: {e}", exc_info=True)
             raise RuntimeError(f"Failed to load Bark models: {e}") from e
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any]) -> "BarkTTSEngine":
+        """Create a BarkTTSEngine instance from configuration."""
+        import settings
+
+        voice_id = config.get("voice_id", "Default")
+        # Handle "Default" option (use default Bark speaker)
+        voice_to_use = (
+            settings.DEFAULT_BARK_SPEAKER if voice_id == "Default" else voice_id
+        )
+
+        return cls(
+            output_devices=config.get("selected_devices", []),
+            voice_preset=voice_to_use,
+            sample_rate=config.get("sample_rate", 24000),
+            playback_speed=config.get("playback_speed", 1.0),
+            volume=config.get("volume", 1.0),
+            tmp_dir=config.get("tmp_dir"),
+            voice_id=voice_id,
+        )
+
+    def get_config(self) -> dict[str, Any]:
+        """Return current configuration."""
+        return {
+            "engine_id": "bark",
+            "selected_devices": self.output_devices,
+            "voice_id": self.voice_id,
+            "sample_rate": self.sample_rate,
+            "playback_speed": self.playback_speed,
+            "volume": self.volume,
+        }
 
     def generate_audio(self, text: str) -> tuple[str, int]:
         """

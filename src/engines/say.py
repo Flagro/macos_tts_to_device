@@ -26,6 +26,7 @@ class SayTTSEngine(TTSEngine):
         timeout: int = 30,
         playback_speed: float = 1.0,
         volume: float = 1.0,
+        voice_id: str = "Default",
     ):
         """
         Initialize the Say TTS engine.
@@ -37,13 +38,44 @@ class SayTTSEngine(TTSEngine):
             timeout: Timeout in seconds for the 'say' command (default: 30)
             playback_speed: Playback speed multiplier (0.5-2.0, default: 1.0)
             volume: Volume multiplier (0.0-1.0, default: 1.0)
+            voice_id: The requested voice ID
         """
-        super().__init__(output_devices, tmp_dir, playback_speed, volume)
+        super().__init__(output_devices, tmp_dir, playback_speed, volume, voice_id)
         self.voice = voice
         self.timeout = timeout
         logger.info(
             f"Initialized SayTTSEngine with voice='{voice}', timeout={timeout}s, devices={output_devices}"
         )
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any]) -> "SayTTSEngine":
+        """Create a SayTTSEngine instance from configuration."""
+        import settings
+
+        voice_id = config.get("voice_id", "Default")
+        # Handle "Default" option (use system default voice)
+        voice_to_use = None if voice_id == "Default" else voice_id
+
+        return cls(
+            output_devices=config.get("selected_devices", []),
+            voice=voice_to_use,
+            timeout=settings.SAY_ENGINE_TIMEOUT,
+            playback_speed=config.get("playback_speed", 1.0),
+            volume=config.get("volume", 1.0),
+            tmp_dir=config.get("tmp_dir"),
+            voice_id=voice_id,
+        )
+
+    def get_config(self) -> dict[str, Any]:
+        """Return current configuration."""
+        return {
+            "engine_id": "say",
+            "selected_devices": self.output_devices,
+            "voice_id": self.voice_id,
+            "playback_speed": self.playback_speed,
+            "volume": self.volume,
+            "sample_rate": 0,  # Not supported
+        }
 
     def generate_audio(self, text: str) -> tuple[str, int]:
         """
