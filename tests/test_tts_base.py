@@ -5,6 +5,7 @@ import tempfile
 import threading
 from unittest.mock import patch, MagicMock
 from io import StringIO
+from typing import Any
 
 import numpy as np
 import pytest
@@ -14,6 +15,23 @@ from src.tts_base import TTSEngine
 
 class ConcreteTTSEngine(TTSEngine):
     """Concrete implementation for testing."""
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any]) -> "ConcreteTTSEngine":
+        return cls(
+            output_devices=config.get("selected_devices", []),
+            tmp_dir=config.get("tmp_dir"),
+            playback_speed=config.get("playback_speed", 1.0),
+            volume=config.get("volume", 1.0),
+        )
+
+    def get_config(self) -> dict[str, Any]:
+        return {
+            "selected_devices": self.output_devices,
+            "playback_speed": self.playback_speed,
+            "volume": self.volume,
+            "voice_id": getattr(self, "voice_id", "Default"),
+        }
 
     def generate_audio(self, text: str) -> tuple[str, int]:
         """Mock audio generation."""
