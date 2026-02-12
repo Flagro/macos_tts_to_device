@@ -25,12 +25,24 @@ def mock_tts_engines():
         mock_say_instance.output_devices = ["Test Device"]
         mock_say_instance.voice = None
         mock_say_instance.playback_speed = 1.0
+        mock_say_instance.volume = 1.0
+        mock_say_instance.voice_id = "Default"
         mock_say_instance.engine_id = "say"
+        mock_say_instance.get_config.return_value = {
+            "engine_id": "say",
+            "selected_devices": ["Test Device"],
+            "voice_id": "Default",
+            "playback_speed": 1.0,
+            "volume": 1.0,
+            "sample_rate": 0,
+        }
         mock_say.return_value = mock_say_instance
+        mock_say.from_config.return_value = mock_say_instance
 
         # Ensure list_available_voices is mocked on the class
         mock_say.list_available_voices.return_value = [
-            {"id": "Alex", "name": "Alex (en_US)"}
+            {"id": "Alex", "name": "Alex"},
+            {"id": "Samantha", "name": "Samantha"},
         ]
 
         mock_bark_instance = MagicMock()
@@ -38,8 +50,19 @@ def mock_tts_engines():
         mock_bark_instance.voice_preset = "v2/en_speaker_6"
         mock_bark_instance.sample_rate = 24000
         mock_bark_instance.playback_speed = 1.0
+        mock_bark_instance.volume = 1.0
+        mock_bark_instance.voice_id = "Default"
         mock_bark_instance.engine_id = "bark"
+        mock_bark_instance.get_config.return_value = {
+            "engine_id": "bark",
+            "selected_devices": ["Test Device"],
+            "voice_id": "Default",
+            "sample_rate": 24000,
+            "playback_speed": 1.0,
+            "volume": 1.0,
+        }
         mock_bark.return_value = mock_bark_instance
+        mock_bark.from_config.return_value = mock_bark_instance
 
         # Ensure list_available_voices is mocked on the class
         mock_bark.list_available_voices.return_value = [
