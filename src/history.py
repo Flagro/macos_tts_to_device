@@ -78,3 +78,11 @@ class HistoryManager:
         """Clear all history."""
         self.history = []
         self._save_history()
+
+    def delete_entry(self, index: int) -> bool:
+        """Delete a single history entry by index."""
+        if 0 <= index < len(self.history):
+            self.history.pop(index)
+            self._save_history()
+            return True
+        return False
