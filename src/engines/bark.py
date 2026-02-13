@@ -61,8 +61,9 @@ class BarkTTSEngine(TTSEngine):
         try:
             from bark import preload_models
 
-            print("Loading Bark models (first run takes a while)...")
-            logger.info("Starting Bark model loading...")
+            msg = "Preloading Bark models (this takes a while on first run)..."
+            print(msg)
+            logger.info(msg)
             preload_models()
             logger.info("Bark models loaded successfully")
         except ImportError as e:
