@@ -189,6 +189,13 @@ def main(
 
       # Enable debug logging for detailed output
       python main.py --engine say --devices "BlackHole 16ch" --log-level DEBUG
+
+    \b
+    Interactive Slash Commands:
+      /help         Show available commands
+      /list-voices  List voices for current engine
+      /clear        Clear history file
+      /exit         Exit the program
     """
     # Configure logging
     setup_logging(level=log_level, verbose=verbose)
@@ -333,7 +340,9 @@ def main(
         piped_text = sys.stdin.read().strip()
         if piped_text:
             try:
-                tts_engine.process_text(piped_text, output_path=output, play_audio=not no_play)
+                tts_engine.process_text(
+                    piped_text, output_path=output, play_audio=not no_play
+                )
                 sys.exit(0)
             except Exception as e:
                 click.echo(f"Error processing piped text: {e}", err=True)
@@ -372,7 +381,9 @@ def main(
                 continue
 
             try:
-                tts_engine.process_text(text, output_path=output, play_audio=not no_play)
+                tts_engine.process_text(
+                    text, output_path=output, play_audio=not no_play
+                )
             except KeyboardInterrupt:
                 raise
             except Exception as e:
