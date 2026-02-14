@@ -139,17 +139,24 @@ class TTSApp:
             7, weight=1
         )  # Updated from 6 to 7 for playback speed row
 
-        # ===== Profile Selection =====
-        ttk.Label(main_frame, text="Profile:").grid(
-            row=0, column=0, sticky=tk.W, pady=5
-        )
+        # ===== Top Section: Profile & Engine =====
+        top_frame = ttk.Frame(main_frame)
+        top_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+        top_frame.columnconfigure(1, weight=1)
 
-        profile_frame = ttk.Frame(main_frame)
-        profile_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5)
+        # Profile Group
+        profile_group = ttk.LabelFrame(top_frame, text="Profile", padding=10)
+        profile_group.grid(
+            row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 5)
+        )
+        profile_group.columnconfigure(0, weight=1)
+
+        profile_inner = ttk.Frame(profile_group)
+        profile_inner.pack(fill=tk.X)
 
         self.profile_var = tk.StringVar()
         self.profile_combo = ttk.Combobox(
-            profile_frame,
+            profile_inner,
             textvariable=self.profile_var,
             state="readonly",
         )
@@ -158,23 +165,24 @@ class TTSApp:
         self._refresh_profile_list()
 
         ttk.Button(
-            profile_frame, text="Save", command=self._on_profile_save, width=8
+            profile_inner, text="Save", command=self._on_profile_save, width=8
         ).pack(side=tk.LEFT, padx=(5, 0))
 
         ttk.Button(
-            profile_frame, text="Delete", command=self._on_profile_delete, width=8
+            profile_inner, text="Delete", command=self._on_profile_delete, width=8
         ).pack(side=tk.LEFT, padx=(5, 0))
 
-        # ===== Engine Selection =====
-        ttk.Label(main_frame, text="Engine:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        # Engine Group
+        engine_group = ttk.LabelFrame(top_frame, text="Engine Settings", padding=10)
+        engine_group.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
 
         self.engine_var = tk.StringVar(value=settings.DEFAULT_ENGINE)
-        engine_row_frame = ttk.Frame(main_frame)
-        engine_row_frame.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5)
+        engine_row_frame = ttk.Frame(engine_group)
+        engine_row_frame.pack(fill=tk.X)
 
-        # Left side: Engine radio buttons
+        # Engine selection
         engine_selection_frame = ttk.Frame(engine_row_frame)
-        engine_selection_frame.pack(side=tk.LEFT, fill=tk.X)
+        engine_selection_frame.pack(side=tk.LEFT)
 
         for engine_id, engine_info in self.engines.items():
             ttk.Radiobutton(
@@ -185,9 +193,9 @@ class TTSApp:
                 command=self._on_engine_change,
             ).pack(side=tk.LEFT, padx=5)
 
-        # Right side: Sample Rate (Bark only)
+        # Sample Rate (Bark only)
         self.sample_rate_frame = ttk.Frame(engine_row_frame)
-        self.sample_rate_frame.pack(side=tk.RIGHT, padx=5)
+        self.sample_rate_frame.pack(side=tk.RIGHT)
 
         self.sample_rate_label = ttk.Label(self.sample_rate_frame, text="Rate:")
         self.sample_rate_label.pack(side=tk.LEFT, padx=(5, 2))
@@ -202,34 +210,46 @@ class TTSApp:
         )
         self.sample_rate_combo.pack(side=tk.LEFT)
 
-        # ===== Output Devices =====
-        device_label_frame = ttk.Frame(main_frame)
-        device_label_frame.grid(row=2, column=0, sticky=(tk.W, tk.N), pady=5)
+        # ===== Middle Section: Devices and Voice =====
+        middle_frame = ttk.Frame(main_frame)
+        middle_frame.grid(
+            row=1, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S)
+        )
+        middle_frame.columnconfigure(0, weight=1)
+        middle_frame.columnconfigure(1, weight=1)
 
-        ttk.Label(device_label_frame, text="Output Devices:").pack(anchor=tk.W)
-        ttk.Button(
-            device_label_frame,
-            text="↻ Refresh",
-            command=self._on_refresh_devices,
-            width=10,
-        ).pack(anchor=tk.W, pady=(2, 0))
-
-        # Frame for device checkboxes (will be populated by _load_audio_devices)
-        self.device_frame = ttk.Frame(main_frame)
-        self.device_frame.grid(
-            row=2, column=1, sticky=(tk.W, tk.E, tk.N), pady=5, padx=5
+        # Output Devices Group
+        device_group = ttk.LabelFrame(middle_frame, text="Audio Output", padding=10)
+        device_group.grid(
+            row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 5), pady=5
         )
 
-        # ===== Playback Speed Control =====
-        self.playback_speed_label = ttk.Label(main_frame, text="Playback Speed:")
-        self.playback_speed_label.grid(row=3, column=0, sticky=tk.W, pady=5)
+        device_header = ttk.Frame(device_group)
+        device_header.pack(fill=tk.X)
 
-        playback_speed_frame = ttk.Frame(main_frame)
-        playback_speed_frame.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
+        ttk.Button(
+            device_header,
+            text="↻ Refresh Devices",
+            command=self._on_refresh_devices,
+        ).pack(fill=tk.X, pady=(0, 5))
+
+        self.device_frame = ttk.Frame(device_group)
+        self.device_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Voice Settings Group
+        voice_group = ttk.LabelFrame(middle_frame, text="Voice & Playback", padding=10)
+        voice_group.grid(
+            row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(5, 0), pady=5
+        )
+
+        # Playback Speed
+        ttk.Label(voice_group, text="Speed:").pack(anchor=tk.W)
+        speed_inner = ttk.Frame(voice_group)
+        speed_inner.pack(fill=tk.X, pady=(0, 5))
 
         self.playback_speed_var = tk.DoubleVar(value=settings.DEFAULT_PLAYBACK_SPEED)
         self.playback_speed_scale = ttk.Scale(
-            playback_speed_frame,
+            speed_inner,
             from_=settings.MIN_PLAYBACK_SPEED,
             to=settings.MAX_PLAYBACK_SPEED,
             variable=self.playback_speed_var,
@@ -238,21 +258,17 @@ class TTSApp:
         )
         self.playback_speed_scale.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
-        self.playback_speed_value_label = ttk.Label(
-            playback_speed_frame, text="1.0x", width=6
-        )
+        self.playback_speed_value_label = ttk.Label(speed_inner, text="1.0x", width=6)
         self.playback_speed_value_label.pack(side=tk.LEFT, padx=(5, 0))
 
-        # ===== Volume Control =====
-        self.volume_label = ttk.Label(main_frame, text="Volume:")
-        self.volume_label.grid(row=4, column=0, sticky=tk.W, pady=5)
-
-        volume_frame = ttk.Frame(main_frame)
-        volume_frame.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
+        # Volume
+        ttk.Label(voice_group, text="Volume:").pack(anchor=tk.W)
+        volume_inner = ttk.Frame(voice_group)
+        volume_inner.pack(fill=tk.X, pady=(0, 5))
 
         self.volume_var = tk.DoubleVar(value=settings.DEFAULT_VOLUME)
         self.volume_scale = ttk.Scale(
-            volume_frame,
+            volume_inner,
             from_=0.0,
             to=1.0,
             variable=self.volume_var,
@@ -261,54 +277,52 @@ class TTSApp:
         )
         self.volume_scale.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
-        self.volume_value_label = ttk.Label(volume_frame, text="100%", width=6)
+        self.volume_value_label = ttk.Label(volume_inner, text="100%", width=6)
         self.volume_value_label.pack(side=tk.LEFT, padx=(5, 0))
 
-        # ===== Voice Selection (Engine-specific) =====
-        ttk.Label(main_frame, text="Voice/Speaker:").grid(
-            row=5, column=0, sticky=tk.W, pady=5
-        )
-
-        voice_frame = ttk.Frame(main_frame)
-        voice_frame.grid(row=5, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
+        # Voice selection
+        ttk.Label(voice_group, text="Voice/Speaker:").pack(anchor=tk.W)
+        voice_inner_frame = ttk.Frame(voice_group)
+        voice_inner_frame.pack(fill=tk.X, pady=(0, 2))
 
         self.voice_var = tk.StringVar(value=settings.DEFAULT_SAY_VOICE)
         self.voice_combo = ttk.Combobox(
-            voice_frame,
+            voice_inner_frame,
             textvariable=self.voice_var,
             state="readonly",
         )
         self.voice_combo.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         self.preview_button = ttk.Button(
-            voice_frame, text="▶ Preview", command=self._on_preview, width=10
+            voice_group, text="▶ Preview Voice", command=self._on_preview
         )
-        self.preview_button.pack(side=tk.LEFT, padx=(5, 0))
+        self.preview_button.pack(fill=tk.X, pady=(2, 0))
 
-        # Help text for voice
         self.voice_help = ttk.Label(
-            main_frame,
+            voice_group,
             text=settings.VOICE_HELP_SAY,
             font=("", settings.HELP_TEXT_FONT_SIZE),
             foreground="gray",
+            wraplength=200,
         )
-        self.voice_help.grid(row=6, column=1, sticky=tk.W, padx=5)
+        self.voice_help.pack(anchor=tk.W, pady=(5, 0))
 
-        # ===== Text Input =====
-        ttk.Label(main_frame, text="Text to Speak:").grid(
-            row=7, column=0, sticky=(tk.W, tk.N), pady=5
+        # ===== Bottom Section: Text Input =====
+        text_group = ttk.LabelFrame(main_frame, text="Text to Speak", padding=10)
+        text_group.grid(
+            row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(10, 0)
         )
+        text_group.columnconfigure(0, weight=1)
+        text_group.rowconfigure(0, weight=1)
 
         self.text_input = scrolledtext.ScrolledText(
-            main_frame,
-            height=settings.TEXT_INPUT_HEIGHT,
+            text_group,
+            height=6,
             width=settings.TEXT_INPUT_WIDTH,
             wrap=tk.WORD,
             font=("", settings.TEXT_INPUT_FONT_SIZE),
         )
-        self.text_input.grid(
-            row=7, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5, padx=5
-        )
+        self.text_input.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.text_input.focus()
 
         # Bindings
@@ -316,59 +330,54 @@ class TTSApp:
         self.text_input.bind("<Control-Return>", lambda e: self._on_speak())
         self.root.bind("<Escape>", lambda e: self._on_stop())
 
-        # ===== Buttons =====
-        button_frame: ttk.Frame = ttk.Frame(main_frame)
-        button_frame.grid(row=8, column=0, columnspan=2, pady=10)
+        # ===== Control Buttons =====
+        control_frame = ttk.Frame(main_frame, padding=(0, 10, 0, 0))
+        control_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E))
 
         self.speak_button = ttk.Button(
-            button_frame,
+            control_frame,
             text="Speak (⌘+Enter)",
             command=self._on_speak,
-            width=20,
         )
-        self.speak_button.pack(side=tk.LEFT, padx=5)
+        self.speak_button.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
 
         ttk.Button(
-            button_frame,
+            control_frame,
             text="Export to File",
             command=self._on_export,
-            width=15,
-        ).pack(side=tk.LEFT, padx=5)
+        ).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
 
         self.stop_button = ttk.Button(
-            button_frame,
+            control_frame,
             text="⏹ Stop",
             command=self._on_stop,
-            width=15,
             state="disabled",
         )
-        self.stop_button.pack(side=tk.LEFT, padx=5)
+        self.stop_button.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
 
-        ttk.Button(button_frame, text="Clear", command=self._on_clear, width=15).pack(
-            side=tk.LEFT, padx=5
+        ttk.Button(control_frame, text="Clear", command=self._on_clear).pack(
+            side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0)
         )
 
-        # ===== Progress Bar =====
+        # ===== Progress & Status =====
         self.progress_bar = ttk.Progressbar(
             main_frame,
             mode="indeterminate",
-            length=300,
         )
         self.progress_bar.grid(
-            row=9, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0), padx=10
+            row=4, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0)
         )
-        self.progress_bar.grid_remove()  # Hidden by default
+        self.progress_bar.grid_remove()
 
-        # ===== Status Bar =====
         self.status_var = tk.StringVar(value="Ready")
-        status_bar: ttk.Label = ttk.Label(
+        status_bar = ttk.Label(
             main_frame,
             textvariable=self.status_var,
             relief=tk.SUNKEN,
             anchor=tk.W,
             padding=(5, 2),
         )
-        status_bar.grid(row=10, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        status_bar.grid(row=5, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0))
 
     def _refresh_profile_list(self) -> None:
         """Update the profile combobox with current profile names."""
@@ -479,7 +488,7 @@ class TTSApp:
                 messagebox.showerror("Error", f"Failed to delete profile '{name}'")
 
     def _create_history_widgets(self, parent: ttk.Frame) -> None:
-        """Create widgets for the history tab."""
+        """Create widgets for the history tab with more controls."""
         parent.columnconfigure(0, weight=1)
         parent.rowconfigure(0, weight=1)
 
@@ -508,20 +517,27 @@ class TTSApp:
             "<Double-Button-1>", lambda e: self._on_history_load()
         )
         self.history_listbox.bind("<Return>", lambda e: self._on_history_load())
+        self.history_listbox.bind("<Delete>", lambda e: self._on_history_delete())
 
         # Buttons frame
         btn_frame = ttk.Frame(history_frame, padding=(0, 10, 0, 0))
         btn_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E))
 
         ttk.Button(
-            btn_frame, text="Replay", command=self._on_history_replay, width=15
-        ).pack(side=tk.LEFT, padx=5)
+            btn_frame, text="Replay", command=self._on_history_replay, width=12
+        ).pack(side=tk.LEFT, padx=2)
         ttk.Button(
             btn_frame, text="Load Settings", command=self._on_history_load, width=15
-        ).pack(side=tk.LEFT, padx=5)
+        ).pack(side=tk.LEFT, padx=2)
         ttk.Button(
-            btn_frame, text="Clear History", command=self._on_history_clear, width=15
-        ).pack(side=tk.LEFT, padx=5)
+            btn_frame, text="Delete Item", command=self._on_history_delete, width=12
+        ).pack(side=tk.LEFT, padx=2)
+
+        ttk.Frame(btn_frame).pack(side=tk.LEFT, expand=True)  # Spacer
+
+        ttk.Button(
+            btn_frame, text="Clear All", command=self._on_history_clear, width=12
+        ).pack(side=tk.RIGHT, padx=2)
 
         self._refresh_history_list()
 
@@ -609,6 +625,20 @@ class TTSApp:
         self._on_history_load()
         # Then speak
         self._on_speak()
+
+    def _on_history_delete(self) -> None:
+        """Delete the selected history item."""
+        if not self.history_listbox:
+            return
+
+        selection = self.history_listbox.curselection()
+        if not selection:
+            return
+
+        index = selection[0]
+        if self.history_manager.delete_entry(index):
+            self._refresh_history_list()
+            self._set_status("Deleted history item")
 
     def _on_history_clear(self) -> None:
         """Clear all history entries."""
