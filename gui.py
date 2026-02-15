@@ -636,7 +636,7 @@ class TTSApp:
             return
 
         index = selection[0]
-        if self.history_manager.delete_entry(index):
+        if self.manager.history_manager.delete_entry(index):
             self._refresh_history_list()
             self._set_status("Deleted history item")
 
