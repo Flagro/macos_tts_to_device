@@ -932,7 +932,13 @@ def main() -> None:
     root: tk.Tk = tk.Tk()
 
     # Tkinter on macOS already uses native appearance by default
-    TTSApp(root)
+    app = TTSApp(root)
+
+    def on_closing() -> None:
+        app.manager.shutdown()
+        root.destroy()
+
+    root.protocol("WM_DELETE_WINDOW", on_closing)
     root.mainloop()
 
 

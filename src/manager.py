@@ -34,6 +34,7 @@ class TTSManager:
         self.loop = asyncio.new_event_loop()
         self._loop_thread = threading.Thread(target=self._run_async_loop, daemon=True)
         self._loop_thread.start()
+        self._shutdown = False
 
         # Callbacks
         self.on_status_change: Optional[Callable[[str], None]] = None
@@ -45,6 +46,20 @@ class TTSManager:
         """Run the asyncio event loop in a background thread."""
         asyncio.set_event_loop(self.loop)
         self.loop.run_forever()
+        self.loop.close()
+
+    def shutdown(self) -> None:
+        """
+        Stop the event loop and wait for the background thread to finish.
+        Call this when the application is exiting for a clean shutdown.
+        """
+        if self._shutdown:
+            return
+        self._shutdown = True
+        self.loop.call_soon_threadsafe(self.loop.stop)
+        self._loop_thread.join(timeout=2.0)
+        if self._loop_thread.is_alive():
+            logger.warning("Event loop thread did not finish within timeout")
 
     def set_status(self, message: str) -> None:
         """Update status via callback."""
