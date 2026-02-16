@@ -786,14 +786,6 @@ class TTSApp:
             self.voice_combo["values"] = self.available_voices
             self.voice_var.set(DEFAULT_VOICE_OPTION)
 
-        except Exception as e:
-            logger.error(
-                f"Failed to load voices for engine '{engine_type}': {e}", exc_info=True
-            )
-            self.available_voices = [DEFAULT_VOICE_OPTION]
-            self.voice_combo["values"] = self.available_voices
-            self.voice_var.set(DEFAULT_VOICE_OPTION)
-
     def _update_ui_for_engine(self) -> None:
         """Update UI elements based on selected engine."""
         engine_type: str = self.engine_var.get()
