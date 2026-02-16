@@ -388,8 +388,8 @@ class TTSApp:
 
     def _on_profile_select(self, event: Optional[tk.Event] = None) -> None:
         """Load settings from the selected profile."""
-        name = self.profile_var.get()
-        profile = self.manager.profile_manager.get_profile(name)
+        profile_name = self.profile_var.get()
+        profile = self.manager.profile_manager.get_profile(profile_name)
         if not profile:
             return
 
@@ -405,9 +405,9 @@ class TTSApp:
             if voice_id:
                 # Find the display name for this ID
                 display_name = voice_id
-                for name, vid in self.voice_name_to_id.items():
+                for v_name, vid in self.voice_name_to_id.items():
                     if vid == voice_id:
-                        display_name = name
+                        display_name = v_name
                         break
                 self.voice_var.set(display_name)
 
@@ -431,9 +431,9 @@ class TTSApp:
             for device_name, var in self.device_vars.items():
                 var.set(device_name in devices)
 
-            self._set_status(f"Loaded profile: {name}")
+            self._set_status(f"Loaded profile: {profile_name}")
         except Exception as e:
-            logger.error(f"Failed to load profile '{name}': {e}")
+            logger.error(f"Failed to load profile '{profile_name}': {e}")
             self._set_status(f"Error loading profile: {e}")
 
     def _on_profile_save(self) -> None:
@@ -828,7 +828,7 @@ class TTSApp:
         voice_name: str = self.voice_var.get().strip()
         voice_id: str = self.voice_name_to_id.get(voice_name, voice_name)
 
-        self.manager.update_engine(
+        success = self.manager.update_engine(
             engine_id=self.engine_var.get(),
             selected_devices=self._get_selected_devices(),
             voice_id=voice_id,
@@ -836,6 +836,8 @@ class TTSApp:
             playback_speed=self.playback_speed_var.get(),
             volume=self.volume_var.get(),
         )
+        if success:
+            self.current_engine_type = self.engine_var.get()
 
     def _on_speak(self, override_text: Optional[str] = None) -> None:
         """Handle speak button click."""
