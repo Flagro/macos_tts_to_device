@@ -139,8 +139,6 @@ class SayTTSEngine(TTSEngine):
         """Return the name of the TTS engine."""
         return "Live TTS (macOS say)"
 
-    supports_sample_rate = False
-
     def _print_engine_specific_info(self):
         """Print Say-specific configuration info."""
         if self.voice:
