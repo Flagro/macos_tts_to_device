@@ -3,7 +3,7 @@
 import logging
 import os
 import wave
-from typing import Optional, Any, Dict, List
+from typing import Optional, Any
 
 from ..tts_base import TTSEngine
 import settings
@@ -53,11 +53,10 @@ class PiperTTSEngine(TTSEngine):
 
             # Ensure model exists
             if not os.path.exists(self.model_path):
-                logger.warning(
+                raise RuntimeError(
                     f"Piper model not found at {self.model_path}. "
-                    f"Please download a model and set PIPER_MODEL_PATH."
+                    "Please download a model and set PIPER_MODEL_PATH."
                 )
-                return
 
             logger.info(f"Loading Piper model: {self.model_path}")
             self.voice = PiperVoice.load(self.model_path)
