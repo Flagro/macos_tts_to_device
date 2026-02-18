@@ -421,10 +421,12 @@ class TTSApp:
             self.volume_var.set(volume)
             self._on_volume_change(str(volume))
 
-            # Set sample rate if applicable
+            # Set sample rate if applicable (only if valid)
             sample_rate = profile.get("sample_rate")
             if sample_rate:
-                self.sample_rate_var.set(str(sample_rate))
+                sample_rate_str = str(sample_rate)
+                if sample_rate_str in settings.AVAILABLE_SAMPLE_RATES:
+                    self.sample_rate_var.set(sample_rate_str)
 
             # Set devices
             devices = profile.get("devices", [])
@@ -597,10 +599,12 @@ class TTSApp:
             self.volume_var.set(volume)
             self._on_volume_change(str(volume))
 
-            # Set sample rate
+            # Set sample rate (only if valid for current engine)
             sample_rate = entry.get("sample_rate")
             if sample_rate:
-                self.sample_rate_var.set(str(sample_rate))
+                sample_rate_str = str(sample_rate)
+                if sample_rate_str in settings.AVAILABLE_SAMPLE_RATES:
+                    self.sample_rate_var.set(sample_rate_str)
 
             # Set devices
             devices = entry.get("devices", [])
