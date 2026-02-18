@@ -159,36 +159,36 @@ def main(
     \b
     Examples:
       # Load settings from a profile
-      python main.py --profile "Gaming" --text "Hello"
+      macos-tts --profile "Gaming" --text "Hello"
       # List available voices for the say engine
-      python main.py --engine say --list-voices
+      macos-tts --engine say --list-voices
 
       # List available voices for the bark engine
-      python main.py --engine bark --list-voices
+      macos-tts --engine bark --list-voices
 
       # Speak text directly from command line
-      python main.py --text "Hello world"
+      macos-tts --text "Hello world"
 
       # Use macOS say with default voice (interactive mode)
-      python main.py --engine say --devices "BlackHole 16ch"
+      macos-tts --engine say --devices "BlackHole 16ch"
 
       # Use macOS say with specific voice and text
-      python main.py --engine say --devices "BlackHole 16ch" --voice "Samantha" --text "Hello"
+      macos-tts --engine say --devices "BlackHole 16ch" --voice "Samantha" --text "Hello"
 
       # Use Bark AI with custom speaker
-      python main.py --engine bark --devices "External Headphones" --speaker "v2/en_speaker_3"
+      macos-tts --engine bark --devices "External Headphones" --speaker "v2/en_speaker_3"
 
       # Multiple devices (simultaneous playback)
-      python main.py --engine say --devices "BlackHole 16ch" --devices "External Headphones"
+      macos-tts --engine say --devices "BlackHole 16ch" --devices "External Headphones"
 
       # Adjust playback speed (faster or slower)
-      python main.py --engine say --devices "BlackHole 16ch" --playback-speed 1.5
+      macos-tts --engine say --devices "BlackHole 16ch" --playback-speed 1.5
 
       # Enable verbose logging for troubleshooting
-      python main.py --engine say --devices "BlackHole 16ch" --verbose
+      macos-tts --engine say --devices "BlackHole 16ch" --verbose
 
       # Enable debug logging for detailed output
-      python main.py --engine say --devices "BlackHole 16ch" --log-level DEBUG
+      macos-tts --engine say --devices "BlackHole 16ch" --log-level DEBUG
 
     \b
     Interactive Slash Commands:
