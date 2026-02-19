@@ -256,8 +256,8 @@ class BarkTTSEngine(TTSEngine):
                 print(f"  {voice_id:<25} {description}")
 
         print("\n" + "=" * 60)
-        print("Usage: python main.py --engine bark --speaker <voice_preset>")
-        print("Example: python main.py --engine bark --speaker v2/en_speaker_3")
+        print("Usage: macos-tts --engine bark --speaker <voice_preset>")
+        print("Example: macos-tts --engine bark --speaker v2/en_speaker_3")
 
     @staticmethod
     def list_available_voices():
