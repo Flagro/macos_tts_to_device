@@ -308,13 +308,13 @@ def main(
             click.echo("\nError: Bark library not installed.", err=True)
             click.echo("Install it with: uv pip install .[bark]", err=True)
             click.echo(
-                "Or use the 'say' engine instead: python main.py --engine say", err=True
+                "Or use the 'say' engine instead: macos-tts --engine say", err=True
             )
         elif "piper" in str(e).lower():
             click.echo("\nError: Piper library not installed.", err=True)
             click.echo("Install it with: uv pip install .[piper]", err=True)
             click.echo(
-                "Or use the 'say' engine instead: python main.py --engine say", err=True
+                "Or use the 'say' engine instead: macos-tts --engine say", err=True
             )
         else:
             click.echo(f"\nImport error: {e}", err=True)
