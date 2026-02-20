@@ -19,8 +19,16 @@ def setup_logging(level=None, verbose=False):
     else:
         log_level = settings.LOG_LEVEL
 
+    try:
+        log_level_value = getattr(logging, log_level)
+    except AttributeError:
+        try:
+            log_level_value = getattr(logging, settings.LOG_LEVEL)
+        except AttributeError:
+            log_level_value = logging.WARNING
+
     logging.basicConfig(
-        level=getattr(logging, log_level),
+        level=log_level_value,
         format=settings.LOG_FORMAT,
         datefmt=settings.LOG_DATE_FORMAT,
     )
