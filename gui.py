@@ -870,6 +870,10 @@ class TTSApp:
             self._set_status("Please enter some text")
             return
 
+        if not self._get_selected_devices():
+            self._set_status("Error: Please select at least one output device")
+            return
+
         engine_type = self.engine_var.get()
         ext = "aiff" if engine_type == ENGINE_SAY else "wav"
 
