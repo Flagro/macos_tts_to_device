@@ -9,7 +9,7 @@ import logging
 import os
 from datetime import datetime
 import tkinter as tk
-from tkinter import ttk, scrolledtext, filedialog
+from tkinter import ttk, scrolledtext, filedialog, simpledialog, messagebox
 from typing import Optional, Any
 
 from src import TTSEngine, TTSManager
@@ -440,8 +440,6 @@ class TTSApp:
 
     def _on_profile_save(self) -> None:
         """Save current settings to a profile."""
-        from tkinter import simpledialog, messagebox
-
         name = simpledialog.askstring(
             "Save Profile",
             "Enter profile name:",
@@ -472,8 +470,6 @@ class TTSApp:
 
     def _on_profile_delete(self) -> None:
         """Delete the currently selected profile."""
-        from tkinter import messagebox
-
         name = self.profile_var.get()
         if not name:
             messagebox.showinfo("Delete Profile", "Please select a profile to delete.")
@@ -646,8 +642,6 @@ class TTSApp:
 
     def _on_history_clear(self) -> None:
         """Clear all history entries."""
-        from tkinter import messagebox
-
         if messagebox.askyesno(
             "Clear History", "Are you sure you want to clear all history?"
         ):
