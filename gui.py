@@ -317,7 +317,7 @@ class TTSApp:
 
         self.text_input = scrolledtext.ScrolledText(
             text_group,
-            height=6,
+            height=settings.TEXT_INPUT_HEIGHT,
             width=settings.TEXT_INPUT_WIDTH,
             wrap=tk.WORD,
             font=("", settings.TEXT_INPUT_FONT_SIZE),
