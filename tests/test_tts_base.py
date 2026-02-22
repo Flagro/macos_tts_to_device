@@ -1,8 +1,8 @@
 """Tests for TTSEngine base class."""
 
-import os
 import tempfile
 import threading
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 from io import StringIO
 from typing import Any
@@ -59,8 +59,8 @@ def test_tts_engine_initialization():
     with tempfile.TemporaryDirectory() as tmp_dir:
         engine = ConcreteTTSEngine(output_devices=["Test Device"], tmp_dir=tmp_dir)
         assert engine.output_devices == ["Test Device"]
-        assert engine.tmp_dir == tmp_dir
-        assert os.path.exists(tmp_dir)
+        assert engine.tmp_dir == Path(tmp_dir)
+        assert Path(tmp_dir).exists()
         assert engine.playback_speed == 1.0
 
 
@@ -135,7 +135,7 @@ def test_process_text_creates_and_cleans_up_temp_file():
             assert mock_play.call_count == 1
 
             # Verify temp file was cleaned up
-            files = os.listdir(tmp_dir)
+            files = list(Path(tmp_dir).iterdir())
             assert len(files) == 0, "Temporary file should be cleaned up"
 
 
@@ -250,7 +250,7 @@ def test_play_on_device_basic():
         engine = ConcreteTTSEngine(output_devices=["Test Device"], tmp_dir=tmp_dir)
 
         # Create a temporary audio file with actual audio data
-        audio_path = os.path.join(tmp_dir, "test_audio.wav")
+        audio_path = str(Path(tmp_dir) / "test_audio.wav")
         test_audio = np.random.rand(1000, 2).astype(np.float32)
 
         with (
@@ -288,7 +288,7 @@ def test_play_on_device_with_cancellation():
     with tempfile.TemporaryDirectory() as tmp_dir:
         engine = ConcreteTTSEngine(output_devices=["Test Device"], tmp_dir=tmp_dir)
 
-        audio_path = os.path.join(tmp_dir, "test_audio.wav")
+        audio_path = str(Path(tmp_dir) / "test_audio.wav")
         test_audio = np.random.rand(1000, 2).astype(np.float32)
         cancel_event = threading.Event()
 
@@ -315,7 +315,7 @@ def test_play_audio_multiple_devices():
         devices = ["Device 1", "Device 2", "Device 3"]
         engine = ConcreteTTSEngine(output_devices=devices, tmp_dir=tmp_dir)
 
-        audio_path = os.path.join(tmp_dir, "test_audio.wav")
+        audio_path = str(Path(tmp_dir) / "test_audio.wav")
         test_audio = np.random.rand(1000, 2).astype(np.float32)
 
         with patch.object(engine, "play_on_device") as mock_play_on_device:

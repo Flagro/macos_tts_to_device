@@ -1,12 +1,12 @@
 """Base class for TTS engines."""
 
-import os
 import uuid
 import logging
 import threading
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Optional, Any
+from pathlib import Path
+from typing import Optional, Any, Union
 
 import numpy as np
 import sounddevice as sd
@@ -119,7 +119,7 @@ class TTSEngine(ABC):
     def __init__(
         self,
         output_devices: list[str],
-        tmp_dir: Optional[str] = None,
+        tmp_dir: Optional[Union[str, Path]] = None,
         playback_speed: float = 1.0,
         volume: float = 1.0,
         voice_id: str = "Default",
@@ -141,12 +141,14 @@ class TTSEngine(ABC):
         self.voice_id = voice_id
 
         if tmp_dir is None:
-            script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            tmp_dir = os.path.join(script_dir, "tts_tmp")
+            script_dir = Path(__file__).resolve().parent.parent
+            tmp_dir = script_dir / "tts_tmp"
+        else:
+            tmp_dir = Path(tmp_dir)
 
         self.tmp_dir = tmp_dir
         try:
-            os.makedirs(self.tmp_dir, exist_ok=True)
+            self.tmp_dir.mkdir(parents=True, exist_ok=True)
             logger.info(f"Temporary directory: {self.tmp_dir}")
             logger.info(f"Playback speed: {self.playback_speed}x")
         except OSError as e:
@@ -432,12 +434,16 @@ class TTSEngine(ABC):
                 self.play_audio(audio_path, sample_rate, cancel_event)
 
         finally:
-            if audio_path and os.path.exists(audio_path):
-                try:
-                    os.remove(audio_path)
-                    logger.debug(f"Cleaned up temporary file: {audio_path}")
-                except OSError as e:
-                    logger.warning(f"Failed to remove temporary file {audio_path}: {e}")
+            if audio_path:
+                path = Path(audio_path)
+                if path.exists():
+                    try:
+                        path.unlink()
+                        logger.debug(f"Cleaned up temporary file: {audio_path}")
+                    except OSError as e:
+                        logger.warning(
+                            f"Failed to remove temporary file {audio_path}: {e}"
+                        )
 
     async def async_process_text(
         self,
@@ -480,12 +486,16 @@ class TTSEngine(ABC):
             if play_audio:
                 await self.async_play_audio(audio_path, sample_rate, cancel_event)
         finally:
-            if audio_path and os.path.exists(audio_path):
-                try:
-                    await asyncio.to_thread(os.remove, audio_path)
-                    logger.debug(f"Cleaned up temporary file: {audio_path}")
-                except OSError as e:
-                    logger.warning(f"Failed to remove temporary file {audio_path}: {e}")
+            if audio_path:
+                path = Path(audio_path)
+                if path.exists():
+                    try:
+                        await asyncio.to_thread(path.unlink)
+                        logger.debug(f"Cleaned up temporary file: {audio_path}")
+                    except OSError as e:
+                        logger.warning(
+                            f"Failed to remove temporary file {audio_path}: {e}"
+                        )
 
     async def async_play_audio(
         self,
@@ -556,9 +566,9 @@ class TTSEngine(ABC):
         Returns:
             Full path to temporary file
         """
-        temp_path = os.path.join(self.tmp_dir, f"{uuid.uuid4().hex}.{extension}")
+        temp_path = self.tmp_dir / f"{uuid.uuid4().hex}.{extension}"
         logger.debug(f"Generated temporary file path: {temp_path}")
-        return temp_path
+        return str(temp_path)
 
     def print_info(self):
         """Print information about the TTS engine configuration."""
