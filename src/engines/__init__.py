@@ -1,13 +1,14 @@
-import os
-import pkgutil
 import importlib
 import logging
+import pkgutil
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+
 def load_engines():
-    """ Dynamically discover and load all modules in the engines directory. """
-    pkg_dir = os.path.dirname(__file__)
+    """Dynamically discover and load all modules in the engines directory."""
+    pkg_dir = str(Path(__file__).parent)
     for _, module_name, _ in pkgutil.iter_modules([pkg_dir]):
         full_module_name = f"{__name__}.{module_name}"
         try:

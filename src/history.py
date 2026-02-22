@@ -1,8 +1,8 @@
 import json
-import os
 import logging
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from pathlib import Path
+from typing import Dict, Any, List, Optional, Union
 import settings
 
 logger = logging.getLogger(__name__)
@@ -11,17 +11,17 @@ logger = logging.getLogger(__name__)
 class HistoryManager:
     """Manages recording and retrieval of spoken text history."""
 
-    def __init__(self, history_file: str = settings.HISTORY_FILE):
-        self.history_file = history_file
+    def __init__(self, history_file: Union[str, Path] = settings.HISTORY_FILE):
+        self.history_file = Path(history_file)
         self.max_items = settings.MAX_HISTORY_ITEMS
         self.history: List[Dict[str, Any]] = self._load_history()
 
     def _load_history(self) -> List[Dict[str, Any]]:
         """Load history from the JSON file."""
-        if not os.path.exists(self.history_file):
+        if not self.history_file.exists():
             return []
         try:
-            with open(self.history_file, "r") as f:
+            with self.history_file.open("r", encoding="utf-8") as f:
                 data = json.load(f)
                 return data if isinstance(data, list) else []
         except (json.JSONDecodeError, ValueError) as e:
@@ -65,7 +65,7 @@ class HistoryManager:
     def _save_history(self) -> None:
         """Save history to the JSON file."""
         try:
-            with open(self.history_file, "w") as f:
+            with self.history_file.open("w", encoding="utf-8") as f:
                 json.dump(self.history, f, indent=4)
         except Exception as e:
             logger.error(f"Failed to save history: {e}")

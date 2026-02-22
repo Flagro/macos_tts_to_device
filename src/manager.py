@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import threading
-import os
+from pathlib import Path
 from typing import Optional, Any, Callable, List, Dict
 
 from src.tts_base import TTSEngine
@@ -246,7 +246,7 @@ class TTSManager:
                 self.set_status("Stopped")
             else:
                 if output_path and not play_audio:
-                    self.set_status(f"Exported to {os.path.basename(output_path)}")
+                    self.set_status(f"Exported to {Path(output_path).name}")
                 else:
                     self.set_status("Playback complete")
 

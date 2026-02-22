@@ -1,7 +1,7 @@
 import json
-import os
 import logging
-from typing import Dict, Any, List, Optional
+from pathlib import Path
+from typing import Dict, Any, List, Optional, Union
 import settings
 
 logger = logging.getLogger(__name__)
@@ -10,16 +10,16 @@ logger = logging.getLogger(__name__)
 class ProfileManager:
     """Manages saving and loading of TTS configuration profiles."""
 
-    def __init__(self, profiles_file: str = settings.PROFILES_FILE):
-        self.profiles_file = profiles_file
+    def __init__(self, profiles_file: Union[str, Path] = settings.PROFILES_FILE):
+        self.profiles_file = Path(profiles_file)
         self.profiles: Dict[str, Any] = self._load_profiles()
 
     def _load_profiles(self) -> Dict[str, Any]:
         """Load profiles from the JSON file."""
-        if not os.path.exists(self.profiles_file):
+        if not self.profiles_file.exists():
             return {}
         try:
-            with open(self.profiles_file, "r") as f:
+            with self.profiles_file.open("r", encoding="utf-8") as f:
                 data = json.load(f)
                 return data if isinstance(data, dict) else {}
         except (json.JSONDecodeError, ValueError) as e:
@@ -33,7 +33,7 @@ class ProfileManager:
         """Save a new profile or update an existing one."""
         self.profiles[name] = settings_dict
         try:
-            with open(self.profiles_file, "w") as f:
+            with self.profiles_file.open("w", encoding="utf-8") as f:
                 json.dump(self.profiles, f, indent=4)
             return True
         except Exception as e:
@@ -45,7 +45,7 @@ class ProfileManager:
         if name in self.profiles:
             del self.profiles[name]
             try:
-                with open(self.profiles_file, "w") as f:
+                with self.profiles_file.open("w", encoding="utf-8") as f:
                     json.dump(self.profiles, f, indent=4)
                 return True
             except Exception as e:

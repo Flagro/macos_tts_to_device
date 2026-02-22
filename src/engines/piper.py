@@ -1,8 +1,8 @@
 """Piper TTS engine implementation."""
 
 import logging
-import os
 import wave
+from pathlib import Path
 from typing import Optional, Any
 
 from ..tts_base import TTSEngine
@@ -52,7 +52,7 @@ class PiperTTSEngine(TTSEngine):
             from piper.voice import PiperVoice
 
             # Ensure model exists
-            if not os.path.exists(self.model_path):
+            if not Path(self.model_path).exists():
                 raise RuntimeError(
                     f"Piper model not found at {self.model_path}. "
                     "Please download a model and set PIPER_MODEL_PATH."
@@ -78,7 +78,7 @@ class PiperTTSEngine(TTSEngine):
         voice_to_use = (
             settings.PIPER_MODEL_PATH
             if voice_id == "Default"
-            else os.path.join(settings.PIPER_VOICES_DIR, voice_id)
+            else str(Path(settings.PIPER_VOICES_DIR) / voice_id)
         )
 
         return cls(
@@ -139,18 +139,18 @@ class PiperTTSEngine(TTSEngine):
 
     def _print_engine_specific_info(self):
         """Print Piper-specific configuration info."""
-        print(f"Piper Model: {os.path.basename(self.model_path)}")
+        print(f"Piper Model: {Path(self.model_path).name}")
 
     @staticmethod
     def list_available_voices() -> list[dict[str, str]]:
         """
         List available Piper models in the models directory.
         """
-        voices_dir = settings.PIPER_VOICES_DIR
-        if not os.path.exists(voices_dir):
+        voices_dir = Path(settings.PIPER_VOICES_DIR)
+        if not voices_dir.exists():
             return []
 
-        models = [f for f in os.listdir(voices_dir) if f.endswith(".onnx")]
+        models = [f.name for f in voices_dir.iterdir() if f.suffix == ".onnx"]
         return [{"id": m, "name": m} for m in sorted(models)]
 
     @staticmethod
