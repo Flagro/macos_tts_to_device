@@ -209,8 +209,6 @@ class BarkTTSEngine(TTSEngine):
         """Return the name of the TTS engine."""
         return "Live Bark TTS"
 
-    supports_sample_rate = True
-
     def _print_engine_specific_info(self):
         """Print Bark-specific configuration info."""
         voice_description = BARK_VOICES.get(self.voice_preset, "Unknown voice")
