@@ -20,12 +20,14 @@ def _get_engine_safe(engine_id):
 
 SayTTSEngine = _get_engine_safe("say")
 BarkTTSEngine = _get_engine_safe("bark")
+PiperTTSEngine = _get_engine_safe("piper")
 
 __all__ = [
     "TTSEngine",
     "load_engines",
     "SayTTSEngine",
     "BarkTTSEngine",
+    "PiperTTSEngine",
     "ProfileManager",
     "HistoryManager",
     "TTSManager",
