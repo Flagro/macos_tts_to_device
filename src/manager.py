@@ -143,8 +143,7 @@ class TTSManager:
         with self.processing_lock:
             if not self.is_processing:
                 return
-
-        self.cancel_event.set()
+            self.cancel_event.set()
         self.set_status("Stopping...")
         logger.info("Stop requested by user")
 
