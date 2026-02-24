@@ -50,6 +50,9 @@ PROFILES_FILE = "profiles.json"
 HISTORY_FILE = "history.json"
 MAX_HISTORY_ITEMS = 50
 
+# Input Validation
+MAX_TEXT_LENGTH = 50_000  # Maximum characters for TTS input
+
 # Logging Configuration
 LOG_LEVEL = "WARNING"
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
