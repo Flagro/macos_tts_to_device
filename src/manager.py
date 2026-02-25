@@ -167,6 +167,14 @@ class TTSManager:
                 self.is_processing = False
             return
 
+        if len(text) > settings.MAX_TEXT_LENGTH:
+            self.set_status(
+                f"Text too long (max {settings.MAX_TEXT_LENGTH:,} characters)"
+            )
+            with self.processing_lock:
+                self.is_processing = False
+            return
+
         # Ensure engine is up to date with config
         if self._needs_reinit(config):
             success = self.update_engine_from_config(config)
