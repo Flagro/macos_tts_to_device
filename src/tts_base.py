@@ -407,6 +407,10 @@ class TTSEngine(ABC):
             output_path: Optional path to save the generated audio file
             play_audio: Whether to play the audio on configured devices
         """
+        if len(text) > settings.MAX_TEXT_LENGTH:
+            raise ValueError(
+                f"Text exceeds maximum length of {settings.MAX_TEXT_LENGTH:,} characters"
+            )
         audio_path = None
         logger.info(f"Processing text: '{text[:50]}{'...' if len(text) > 50 else ''}'")
         try:
@@ -461,6 +465,10 @@ class TTSEngine(ABC):
             output_path: Optional path to save the generated audio file
             play_audio: Whether to play the audio on configured devices
         """
+        if len(text) > settings.MAX_TEXT_LENGTH:
+            raise ValueError(
+                f"Text exceeds maximum length of {settings.MAX_TEXT_LENGTH:,} characters"
+            )
         audio_path = None
         logger.info(
             f"Async processing text: '{text[:50]}{'...' if len(text) > 50 else ''}'"
