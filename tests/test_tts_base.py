@@ -122,6 +122,18 @@ def test_list_available_devices():
         assert devices[1]["name"] == "Device 2"
 
 
+def test_process_text_rejects_text_exceeding_max_length():
+    """Test that process_text raises ValueError when text exceeds MAX_TEXT_LENGTH."""
+    import settings
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        engine = ConcreteTTSEngine(output_devices=["Test Device"], tmp_dir=tmp_dir)
+
+        with patch.object(settings, "MAX_TEXT_LENGTH", 5):
+            with pytest.raises(ValueError, match="exceeds maximum length"):
+                engine.process_text("This text is too long")
+
+
 def test_process_text_creates_and_cleans_up_temp_file():
     """Test that process_text creates and properly cleans up temporary files."""
     with tempfile.TemporaryDirectory() as tmp_dir:
