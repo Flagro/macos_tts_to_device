@@ -178,6 +178,40 @@ def test_gui_speak_button_validation(mock_tts_engines):
         root.destroy()
 
 
+def test_gui_text_length_validation(mock_tts_engines):
+    """Test that speak button validates text length."""
+    import settings
+
+    root = tk.Tk()
+    try:
+        with patch("src.tts_base.TTSEngine.list_available_devices") as mock_devices:
+            mock_devices.return_value = [
+                {
+                    "name": "Test Device",
+                    "index": 0,
+                    "max_output_channels": 2,
+                    "default_samplerate": 44100,
+                    "hostapi": 0,
+                }
+            ]
+
+            with patch(
+                "src.engines.say.SayTTSEngine.list_available_voices"
+            ) as mock_voices:
+                mock_voices.return_value = [{"id": "Alex", "name": "Alex"}]
+
+                with patch.object(settings, "MAX_TEXT_LENGTH", 10):
+                    app = TTSApp(root)
+
+                    # Add text that exceeds limit
+                    app.text_input.insert("1.0", "This is way too long text")
+                    app._on_speak()
+                    assert "too long" in app.status_var.get().lower()
+                    assert "10" in app.status_var.get()
+    finally:
+        root.destroy()
+
+
 def test_gui_device_validation(mock_tts_engines):
     """Test that speak button validates device selection."""
     root = tk.Tk()
